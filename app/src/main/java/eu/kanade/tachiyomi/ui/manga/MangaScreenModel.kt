@@ -71,6 +71,7 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.ChapterDisplayMode
 import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.model.NoChaptersException
 import tachiyomi.domain.chapter.service.calculateChapterGap
@@ -144,6 +145,11 @@ class MangaScreenModel(
     val chapterSwipeStartAction = libraryPreferences.swipeToEndAction().get()
     val chapterSwipeEndAction = libraryPreferences.swipeToStartAction().get()
     var autoTrackState = trackPreferences.autoUpdateTrackOnMarkRead().get()
+
+    // Chapter display mode preferences
+    val chapterDisplayMode = libraryPreferences.chapterDisplayMode()
+    val chapterGridPortraitColumns = libraryPreferences.chapterGridPortraitColumns()
+    val chapterGridLandscapeColumns = libraryPreferences.chapterGridLandscapeColumns()
 
     private val skipFiltered by readerPreferences.skipFiltered().asState(screenModelScope)
 

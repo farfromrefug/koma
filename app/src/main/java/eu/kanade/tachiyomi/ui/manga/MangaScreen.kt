@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.manga
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -15,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
@@ -63,6 +65,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.ChapterDisplayMode
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -219,19 +222,39 @@ class MangaScreen(
                     onDismissRequest = onDismissRequest,
                 )
             }
-            MangaScreenModel.Dialog.SettingsSheet -> ChapterSettingsDialog(
-                onDismissRequest = onDismissRequest,
-                manga = successState.manga,
-                onDownloadFilterChanged = screenModel::setDownloadedFilter,
-                onUnreadFilterChanged = screenModel::setUnreadFilter,
-                onBookmarkedFilterChanged = screenModel::setBookmarkedFilter,
-                onSortModeChanged = screenModel::setSorting,
-                onDisplayModeChanged = screenModel::setDisplayMode,
-                onSetAsDefault = screenModel::setCurrentSettingsAsDefault,
-                onResetToDefault = screenModel::resetToDefaultSettings,
-                scanlatorFilterActive = successState.scanlatorFilterActive,
-                onScanlatorFilterClicked = { showScanlatorsDialog = true },
-            )
+            MangaScreenModel.Dialog.SettingsSheet -> {
+                val configuration = LocalConfiguration.current
+                val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val chapterDisplayMode by screenModel.chapterDisplayMode.collectAsState()
+                val chapterGridColumns by if (isLandscape) {
+                    screenModel.chapterGridLandscapeColumns.collectAsState()
+                } else {
+                    screenModel.chapterGridPortraitColumns.collectAsState()
+                }
+                ChapterSettingsDialog(
+                    onDismissRequest = onDismissRequest,
+                    manga = successState.manga,
+                    onDownloadFilterChanged = screenModel::setDownloadedFilter,
+                    onUnreadFilterChanged = screenModel::setUnreadFilter,
+                    onBookmarkedFilterChanged = screenModel::setBookmarkedFilter,
+                    onSortModeChanged = screenModel::setSorting,
+                    onDisplayModeChanged = screenModel::setDisplayMode,
+                    onSetAsDefault = screenModel::setCurrentSettingsAsDefault,
+                    onResetToDefault = screenModel::resetToDefaultSettings,
+                    scanlatorFilterActive = successState.scanlatorFilterActive,
+                    onScanlatorFilterClicked = { showScanlatorsDialog = true },
+                    chapterDisplayMode = chapterDisplayMode,
+                    onChapterDisplayModeChanged = { screenModel.chapterDisplayMode.set(it) },
+                    chapterGridColumns = chapterGridColumns,
+                    onChapterGridColumnsChanged = {
+                        if (isLandscape) {
+                            screenModel.chapterGridLandscapeColumns.set(it)
+                        } else {
+                            screenModel.chapterGridPortraitColumns.set(it)
+                        }
+                    },
+                )
+            }
             MangaScreenModel.Dialog.TrackSheet -> {
                 NavigatorAdaptiveSheet(
                     screen = TrackInfoDialogHomeScreen(

@@ -768,6 +768,11 @@
     <string name="confirm_set_chapter_settings">Are you sure you want to save these settings as default?</string>
     <string name="also_set_chapter_settings_for_library">Also apply to all entries in my library</string>
     <string name="set_chapter_settings_as_default">Set as default</string>
+    <string name="chapter_display_mode">Chapter display mode</string>
+    <string name="chapter_display_list">List</string>
+    <string name="chapter_display_compact_grid">Compact grid</string>
+    <string name="chapter_display_comfortable_grid">Comfortable grid</string>
+    <string name="pref_chapter_columns">Grid columns</string>
     <string name="no_chapters_error">No chapters found</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="exclude_scanlators">Exclude scanlators</string>

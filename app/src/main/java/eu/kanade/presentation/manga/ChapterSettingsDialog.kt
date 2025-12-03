@@ -1,5 +1,6 @@
 package eu.kanade.presentation.manga
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PeopleAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.manga.model.downloadedFilter
@@ -33,10 +36,14 @@ import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.core.common.preference.TriState
+import tachiyomi.domain.chapter.model.ChapterDisplayMode
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.HeadingItem
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.RadioItem
+import tachiyomi.presentation.core.components.SettingsChipRow
+import tachiyomi.presentation.core.components.SliderItem
 import tachiyomi.presentation.core.components.SortItem
 import tachiyomi.presentation.core.components.TriStateItem
 import tachiyomi.presentation.core.i18n.stringResource
@@ -57,6 +64,10 @@ fun ChapterSettingsDialog(
     onDisplayModeChanged: (Long) -> Unit,
     onSetAsDefault: (applyToExistingManga: Boolean) -> Unit,
     onResetToDefault: () -> Unit,
+    chapterDisplayMode: ChapterDisplayMode = ChapterDisplayMode.List,
+    onChapterDisplayModeChanged: (ChapterDisplayMode) -> Unit = {},
+    chapterGridColumns: Int = 0,
+    onChapterGridColumnsChanged: (Int) -> Unit = {},
 ) {
     var showSetAsDefaultDialog by rememberSaveable { mutableStateOf(false) }
     if (showSetAsDefaultDialog) {
@@ -122,6 +133,10 @@ fun ChapterSettingsDialog(
                     DisplayPage(
                         displayMode = manga?.displayMode ?: 0,
                         onItemSelected = onDisplayModeChanged,
+                        chapterDisplayMode = chapterDisplayMode,
+                        onChapterDisplayModeChanged = onChapterDisplayModeChanged,
+                        chapterGridColumns = chapterGridColumns,
+                        onChapterGridColumnsChanged = onChapterGridColumnsChanged,
                     )
                 }
             }
@@ -214,7 +229,13 @@ private fun ColumnScope.SortPage(
 private fun ColumnScope.DisplayPage(
     displayMode: Long,
     onItemSelected: (Long) -> Unit,
+    chapterDisplayMode: ChapterDisplayMode,
+    onChapterDisplayModeChanged: (ChapterDisplayMode) -> Unit,
+    chapterGridColumns: Int,
+    onChapterGridColumnsChanged: (Int) -> Unit,
 ) {
+    // Chapter title display mode (name vs number)
+    HeadingItem(MR.strings.action_display)
     listOf(
         MR.strings.show_title to Manga.CHAPTER_DISPLAY_NAME,
         MR.strings.show_chapter_number to Manga.CHAPTER_DISPLAY_NUMBER,
@@ -225,7 +246,44 @@ private fun ColumnScope.DisplayPage(
             onClick = { onItemSelected(mode) },
         )
     }
+
+    // Chapter display mode (list/grid)
+    HeadingItem(MR.strings.chapter_display_mode)
+    SettingsChipRow(MR.strings.chapter_display_mode) {
+        chapterDisplayModes.map { (titleRes, mode) ->
+            FilterChip(
+                selected = chapterDisplayMode == mode,
+                onClick = { onChapterDisplayModeChanged(mode) },
+                label = { Text(stringResource(titleRes)) },
+            )
+        }
+    }
+
+    // Grid columns (only shown when using grid display mode)
+    if (chapterDisplayMode != ChapterDisplayMode.List) {
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        
+        SliderItem(
+            value = chapterGridColumns,
+            valueRange = 0..10,
+            label = stringResource(MR.strings.pref_chapter_columns),
+            valueString = if (chapterGridColumns > 0) {
+                chapterGridColumns.toString()
+            } else {
+                stringResource(MR.strings.label_auto)
+            },
+            onChange = onChapterGridColumnsChanged,
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
 }
+
+private val chapterDisplayModes = listOf(
+    MR.strings.chapter_display_list to ChapterDisplayMode.List,
+    MR.strings.chapter_display_compact_grid to ChapterDisplayMode.CompactGrid,
+    MR.strings.chapter_display_comfortable_grid to ChapterDisplayMode.ComfortableGrid,
+)
 
 @Composable
 private fun SetAsDefaultDialog(

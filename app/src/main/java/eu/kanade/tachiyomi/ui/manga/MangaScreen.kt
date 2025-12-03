@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.manga
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -15,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.net.toUri
@@ -63,9 +65,11 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.ChapterDisplayMode
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.collectAsState
 
 class MangaScreen(
     private val mangaId: Long,
@@ -88,11 +92,17 @@ class MangaScreen(
         val haptic = LocalHapticFeedback.current
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val screenModel = rememberScreenModel {
             MangaScreenModel(context, lifecycleOwner.lifecycle, mangaId, fromSource)
         }
 
         val state by screenModel.state.collectAsStateWithLifecycle()
+        val chapterDisplayMode by screenModel.chapterDisplayMode.collectAsState()
+        val chapterGridPortraitColumns by screenModel.chapterGridPortraitColumns.collectAsState()
+        val chapterGridLandscapeColumns by screenModel.chapterGridLandscapeColumns.collectAsState()
+        val chapterGridColumns = if (isLandscape) chapterGridLandscapeColumns else chapterGridPortraitColumns
 
         if (state is MangaScreenModel.State.Loading) {
             LoadingScreen()
@@ -121,6 +131,8 @@ class MangaScreen(
             isTabletUi = isTabletUi(),
             chapterSwipeStartAction = screenModel.chapterSwipeStartAction,
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
+            chapterDisplayMode = chapterDisplayMode,
+            chapterGridColumns = chapterGridColumns,
             navigateUp = navigator::pop,
             onChapterClicked = { openChapter(context, it) },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
@@ -219,19 +231,37 @@ class MangaScreen(
                     onDismissRequest = onDismissRequest,
                 )
             }
-            MangaScreenModel.Dialog.SettingsSheet -> ChapterSettingsDialog(
-                onDismissRequest = onDismissRequest,
-                manga = successState.manga,
-                onDownloadFilterChanged = screenModel::setDownloadedFilter,
-                onUnreadFilterChanged = screenModel::setUnreadFilter,
-                onBookmarkedFilterChanged = screenModel::setBookmarkedFilter,
-                onSortModeChanged = screenModel::setSorting,
-                onDisplayModeChanged = screenModel::setDisplayMode,
-                onSetAsDefault = screenModel::setCurrentSettingsAsDefault,
-                onResetToDefault = screenModel::resetToDefaultSettings,
-                scanlatorFilterActive = successState.scanlatorFilterActive,
-                onScanlatorFilterClicked = { showScanlatorsDialog = true },
-            )
+            MangaScreenModel.Dialog.SettingsSheet -> {
+                val configuration = LocalConfiguration.current
+                val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val chapterDisplayModeState by screenModel.chapterDisplayMode.collectAsState()
+                val chapterGridPortraitColumnsState by screenModel.chapterGridPortraitColumns.collectAsState()
+                val chapterGridLandscapeColumnsState by screenModel.chapterGridLandscapeColumns.collectAsState()
+                val chapterGridColumnsState = if (isLandscape) chapterGridLandscapeColumnsState else chapterGridPortraitColumnsState
+                ChapterSettingsDialog(
+                    onDismissRequest = onDismissRequest,
+                    manga = successState.manga,
+                    onDownloadFilterChanged = screenModel::setDownloadedFilter,
+                    onUnreadFilterChanged = screenModel::setUnreadFilter,
+                    onBookmarkedFilterChanged = screenModel::setBookmarkedFilter,
+                    onSortModeChanged = screenModel::setSorting,
+                    onDisplayModeChanged = screenModel::setDisplayMode,
+                    onSetAsDefault = screenModel::setCurrentSettingsAsDefault,
+                    onResetToDefault = screenModel::resetToDefaultSettings,
+                    scanlatorFilterActive = successState.scanlatorFilterActive,
+                    onScanlatorFilterClicked = { showScanlatorsDialog = true },
+                    chapterDisplayMode = chapterDisplayModeState,
+                    onChapterDisplayModeChanged = { screenModel.chapterDisplayMode.set(it) },
+                    chapterGridColumns = chapterGridColumnsState,
+                    onChapterGridColumnsChanged = {
+                        if (isLandscape) {
+                            screenModel.chapterGridLandscapeColumns.set(it)
+                        } else {
+                            screenModel.chapterGridPortraitColumns.set(it)
+                        }
+                    },
+                )
+            }
             MangaScreenModel.Dialog.TrackSheet -> {
                 NavigatorAdaptiveSheet(
                     screen = TrackInfoDialogHomeScreen(

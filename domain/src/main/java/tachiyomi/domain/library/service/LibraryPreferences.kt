@@ -4,6 +4,7 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.getEnum
+import tachiyomi.domain.chapter.model.ChapterDisplayMode
 import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibrarySort
 import tachiyomi.domain.manga.model.Manga
@@ -176,6 +177,19 @@ class LibraryPreferences(
     fun autoClearChapterCache() = preferenceStore.getBoolean("auto_clear_chapter_cache", false)
 
     fun hideMissingChapters() = preferenceStore.getBoolean("pref_hide_missing_chapter_indicators", false)
+
+    // Chapter display mode (list/grid)
+    fun chapterDisplayMode() = preferenceStore.getObjectFromString(
+        "pref_chapter_display_mode",
+        ChapterDisplayMode.default,
+        ChapterDisplayMode.Serializer::serialize,
+        ChapterDisplayMode.Serializer::deserialize,
+    )
+
+    fun chapterGridPortraitColumns() = preferenceStore.getInt("pref_chapter_grid_columns_portrait", 0)
+
+    fun chapterGridLandscapeColumns() = preferenceStore.getInt("pref_chapter_grid_columns_landscape", 0)
+
     // endregion
 
     // region Swipe Actions

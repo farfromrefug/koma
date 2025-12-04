@@ -57,6 +57,7 @@ val backupChapterMapper = {
         lastModifiedAt: Long,
         version: Long,
         _: Long,
+        _: String?,
     ->
     BackupChapter(
         url = url,

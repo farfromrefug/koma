@@ -1,3 +1,8 @@
+-- Add cover_url column for per-chapter covers
+ALTER TABLE chapters ADD COLUMN cover_url TEXT;
+
+-- Recreate updatesView to include the new chapter cover_url column
+DROP VIEW IF EXISTS updatesView;
 CREATE VIEW updatesView AS
 SELECT
     mangas._id AS mangaId,
@@ -21,16 +26,3 @@ ON mangas._id = chapters.manga_id
 WHERE favorite = 1
 AND date_fetch > date_added
 ORDER BY date_fetch DESC;
-
-getRecentUpdates:
-SELECT *
-FROM updatesView
-WHERE dateUpload > :after
-LIMIT :limit;
-
-getUpdatesByReadStatus:
-SELECT *
-FROM updatesView
-WHERE read = :read
-AND dateUpload > :after
-LIMIT :limit;

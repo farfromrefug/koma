@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkQuery
 import androidx.work.WorkerParameters
+import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.copyFrom
 import eu.kanade.domain.manga.model.toSManga
@@ -49,6 +50,7 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
     private val coverCache: CoverCache = Injekt.get()
     private val getLibraryManga: GetLibraryManga = Injekt.get()
     private val updateManga: UpdateManga = Injekt.get()
+    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get()
 
     private val notifier = LibraryUpdateNotifier(context)
 
@@ -108,33 +110,51 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
                 .values
                 .map { mangaInSource ->
                     async {
-                        semaphore.withPermit {
-                            mangaInSource.forEach { libraryManga ->
-                                val manga = libraryManga.manga
-                                ensureActive()
+                        // Process manga within each source in parallel with a per-source semaphore
+                        // Use per-source semaphore first to limit concurrent requests per source
+                        val perSourceSemaphore = Semaphore(3)
+                        mangaInSource.map { libraryManga ->
+                            async {
+                                // Acquire per-source permit first (limits requests to same source)
+                                perSourceSemaphore.withPermit {
+                                    // Then acquire global permit (limits total concurrent requests)
+                                    semaphore.withPermit {
+                                        val manga = libraryManga.manga
+                                        ensureActive()
 
-                                withUpdateNotification(
-                                    currentlyUpdatingManga,
-                                    progressCount,
-                                    manga,
-                                ) {
-                                    val source = sourceManager.get(manga.source) ?: return@withUpdateNotification
-                                    try {
-                                        val networkManga = source.getMangaDetails(manga.toSManga())
-                                        val updatedManga = manga.prepUpdateCover(coverCache, networkManga, true)
-                                            .copyFrom(networkManga)
-                                        try {
-                                            updateManga.await(updatedManga.toMangaUpdate())
-                                        } catch (e: Exception) {
-                                            logcat(LogPriority.ERROR) { "Manga doesn't exist anymore" }
+                                        withUpdateNotification(
+                                            currentlyUpdatingManga,
+                                            progressCount,
+                                            manga,
+                                        ) {
+                                            val source = sourceManager.get(manga.source) ?: return@withUpdateNotification
+                                            try {
+                                                // Update manga metadata
+                                                val networkManga = source.getMangaDetails(manga.toSManga())
+                                                val updatedManga = manga.prepUpdateCover(coverCache, networkManga, true)
+                                                    .copyFrom(networkManga)
+                                                try {
+                                                    updateManga.await(updatedManga.toMangaUpdate())
+                                                } catch (e: Exception) {
+                                                    logcat(LogPriority.ERROR) { "Manga doesn't exist anymore" }
+                                                }
+
+                                                // Update chapter metadata (including cover URLs)
+                                                try {
+                                                    val chapters = source.getChapterList(manga.toSManga())
+                                                    syncChaptersWithSource.await(chapters, manga, source, manualFetch = true)
+                                                } catch (e: Exception) {
+                                                    logcat(LogPriority.ERROR, e) { "Failed to sync chapters for ${manga.title}" }
+                                                }
+                                            } catch (e: Throwable) {
+                                                // Ignore errors and continue
+                                                logcat(LogPriority.ERROR, e)
+                                            }
                                         }
-                                    } catch (e: Throwable) {
-                                        // Ignore errors and continue
-                                        logcat(LogPriority.ERROR, e)
                                     }
                                 }
                             }
-                        }
+                        }.awaitAll()
                     }
                 }
                 .awaitAll()

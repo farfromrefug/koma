@@ -110,7 +110,7 @@ class DownloadProvider(
      * @param source the source to query.
      */
     fun findSourceDir(source: Source): UniFile? {
-        // Check local source directory first if it's the local source
+        // Local source always uses local source directory
         if (source.id == LocalSource.ID) {
             return localSourceDir
         }
@@ -126,12 +126,17 @@ class DownloadProvider(
     fun findMangaDir(mangaTitle: String, source: Source): UniFile? {
         val mangaDirName = getMangaDirName(mangaTitle)
 
-        // Check local source directory if downloadToLocalSource is enabled or if it's local source
-        if (downloadPreferences.downloadToLocalSource().get() || source.id == LocalSource.ID) {
+        // Local source always uses local source directory
+        if (source.id == LocalSource.ID) {
+            return localSourceDir?.findFile(mangaDirName)
+        }
+
+        // For other sources, check local source directory first if downloadToLocalSource is enabled
+        if (downloadPreferences.downloadToLocalSource().get()) {
             localSourceDir?.findFile(mangaDirName)?.let { return it }
         }
 
-        // Also check downloads directory
+        // Check downloads directory for non-local sources
         val sourceDir = downloadsDir?.findFile(getSourceDirName(source))
         return sourceDir?.findFile(mangaDirName)
     }

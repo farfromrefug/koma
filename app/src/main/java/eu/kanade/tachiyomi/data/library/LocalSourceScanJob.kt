@@ -115,9 +115,15 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
         val totalCount = localMangas.size
 
         // Get default category
+        // defaultCategory() returns -1 for "Always ask", 0 for "Default", or a specific category ID
         val defaultCategoryId = libraryPreferences.defaultCategory().get().toLong()
         val categories = getCategories.await()
-        val defaultCategory = categories.find { it.id == defaultCategoryId }
+        // Only set a default category if a specific one is configured (not -1 or 0)
+        val defaultCategory = if (defaultCategoryId > 0) {
+            categories.find { it.id == defaultCategoryId }
+        } else {
+            null
+        }
 
         for (sManga in localMangas) {
             ensureActive()

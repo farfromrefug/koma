@@ -113,9 +113,11 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
         val localSourceManga = mangaToUpdate.filter { it.manga.source == LocalSource.ID }
         val otherSourceManga = mangaToUpdate.filter { it.manga.source != LocalSource.ID }
 
-        // Calculate total chapters for local source for progress tracking
-        val totalLocalChapters = localSourceManga.sumOf { libraryManga ->
-            getChaptersByMangaId.await(libraryManga.manga.id).size.coerceAtLeast(1)
+        // Calculate total chapters for local source for progress tracking (in parallel)
+        val totalLocalChapters = coroutineScope {
+            localSourceManga.map { libraryManga ->
+                async { getChaptersByMangaId.await(libraryManga.manga.id).size.coerceAtLeast(1) }
+            }.awaitAll().sum()
         }
         val localChapterProgress = AtomicInt(0)
 

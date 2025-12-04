@@ -55,6 +55,8 @@ enum class MangaCover(val ratio: Float) {
             contentDescription = contentDescription,
             modifier = modifier
                 .aspectRatio(ratio)
+                // Border before clip: border draws on shape outline, not as content,
+                // so it remains visible after clip for e-ink display visibility
                 .then(borderModifier)
                 .clip(shape)
                 .then(

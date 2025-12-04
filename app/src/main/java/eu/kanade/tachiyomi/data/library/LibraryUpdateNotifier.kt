@@ -112,6 +112,35 @@ class LibraryUpdateNotifier(
     }
 
     /**
+     * Shows the notification containing chapter-level progress for local source metadata update.
+     *
+     * @param manga the manga being updated.
+     * @param currentChapter the current chapter progress.
+     * @param totalChapters the total number of chapters.
+     */
+    fun showChapterProgressNotification(manga: Manga?, currentChapter: Int, totalChapters: Int) {
+        progressNotificationBuilder
+            .setContentTitle(
+                context.stringResource(
+                    MR.strings.notification_updating_local_chapters,
+                    currentChapter,
+                    totalChapters,
+                ),
+            )
+
+        if (!securityPreferences.hideNotificationContent().get() && manga != null) {
+            progressNotificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(manga.title.chop(40)))
+        }
+
+        context.notify(
+            Notifications.ID_LIBRARY_PROGRESS,
+            progressNotificationBuilder
+                .setProgress(totalChapters, currentChapter, false)
+                .build(),
+        )
+    }
+
+    /**
      * Warn when excessively checking any single source.
      */
     fun showQueueSizeWarningNotificationIfNeeded(mangaToUpdate: List<LibraryManga>) {

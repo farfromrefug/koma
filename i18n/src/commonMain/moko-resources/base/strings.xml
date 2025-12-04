@@ -528,6 +528,13 @@
     <string name="pref_download_concurrent_sources">Concurrent source downloads</string>
     <string name="pref_download_concurrent_pages">Concurrent page downloads</string>
     <string name="pref_download_concurrent_pages_summary">Pages downloaded simultaneously per source</string>
+    <string name="pref_download_to_local_source">Download to local source folder</string>
+    <string name="pref_download_to_local_source_summary">Save downloaded chapters directly to local source folder instead of downloads folder</string>
+
+    <!-- Local source settings -->
+    <string name="pref_auto_add_local_manga_to_library">Auto-add local manga to library</string>
+    <string name="pref_auto_add_local_manga_to_library_summary">Automatically add new manga from local source to library</string>
+    <string name="notification_updating_local_chapters">Updating local source: %d/%d chapters</string>
 
     <!-- Tracking section -->
     <string name="tracking_guide">Tracking guide</string>

@@ -30,17 +30,20 @@ import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.toMangaUpdate
 import tachiyomi.domain.source.service.SourceManager
+import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.fetchAndIncrement
+import kotlin.concurrent.atomics.incrementAndFetch
 
 @OptIn(ExperimentalAtomicApi::class)
 class MetadataUpdateJob(private val context: Context, workerParams: WorkerParameters) :
@@ -49,6 +52,7 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
     private val sourceManager: SourceManager = Injekt.get()
     private val coverCache: CoverCache = Injekt.get()
     private val getLibraryManga: GetLibraryManga = Injekt.get()
+    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get()
     private val updateManga: UpdateManga = Injekt.get()
     private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get()
 
@@ -105,19 +109,81 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
         val progressCount = AtomicInt(0)
         val currentlyUpdatingManga = CopyOnWriteArrayList<Manga>()
 
+        // Separate local source manga from others for chapter-level progress tracking
+        val localSourceManga = mangaToUpdate.filter { it.manga.source == LocalSource.ID }
+        val otherSourceManga = mangaToUpdate.filter { it.manga.source != LocalSource.ID }
+
+        // Calculate total chapters for local source for progress tracking
+        val totalLocalChapters = localSourceManga.sumOf { libraryManga ->
+            getChaptersByMangaId.await(libraryManga.manga.id).size.coerceAtLeast(1)
+        }
+        val localChapterProgress = AtomicInt(0)
+
         coroutineScope {
-            mangaToUpdate.groupBy { it.manga.source }
+            // Process local source manga with chapter-level progress
+            if (localSourceManga.isNotEmpty()) {
+                localSourceManga.map { libraryManga ->
+                    async {
+                        semaphore.withPermit {
+                            val manga = libraryManga.manga
+                            ensureActive()
+
+                            val source = sourceManager.get(manga.source) ?: return@withPermit
+                            try {
+                                // Show chapter-level progress for local source
+                                notifier.showChapterProgressNotification(
+                                    manga,
+                                    localChapterProgress.load(),
+                                    totalLocalChapters,
+                                )
+
+                                // Update manga metadata
+                                val networkManga = source.getMangaDetails(manga.toSManga())
+                                val updatedManga = manga.prepUpdateCover(coverCache, networkManga, true)
+                                    .copyFrom(networkManga)
+                                try {
+                                    updateManga.await(updatedManga.toMangaUpdate())
+                                } catch (e: Exception) {
+                                    logcat(LogPriority.ERROR) { "Manga doesn't exist anymore" }
+                                }
+
+                                // Update chapter metadata
+                                try {
+                                    val chapters = source.getChapterList(manga.toSManga())
+                                    syncChaptersWithSource.await(chapters, manga, source, manualFetch = true)
+
+                                    // Update progress after processing chapters
+                                    // Add the number of chapters processed (at least 1 per manga)
+                                    repeat(chapters.size.coerceAtLeast(1)) {
+                                        localChapterProgress.incrementAndFetch()
+                                    }
+                                    notifier.showChapterProgressNotification(
+                                        manga,
+                                        localChapterProgress.load().coerceAtMost(totalLocalChapters),
+                                        totalLocalChapters,
+                                    )
+                                } catch (e: Exception) {
+                                    localChapterProgress.incrementAndFetch()
+                                    logcat(LogPriority.ERROR, e) { "Failed to sync chapters for ${manga.title}" }
+                                }
+                            } catch (e: Throwable) {
+                                localChapterProgress.incrementAndFetch()
+                                logcat(LogPriority.ERROR, e)
+                            }
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            // Process other source manga with manga-level progress (original behavior)
+            otherSourceManga.groupBy { it.manga.source }
                 .values
                 .map { mangaInSource ->
                     async {
-                        // Process manga within each source in parallel with a per-source semaphore
-                        // Use per-source semaphore first to limit concurrent requests per source
                         val perSourceSemaphore = Semaphore(3)
                         mangaInSource.map { libraryManga ->
                             async {
-                                // Acquire per-source permit first (limits requests to same source)
                                 perSourceSemaphore.withPermit {
-                                    // Then acquire global permit (limits total concurrent requests)
                                     semaphore.withPermit {
                                         val manga = libraryManga.manga
                                         ensureActive()
@@ -126,10 +192,10 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
                                             currentlyUpdatingManga,
                                             progressCount,
                                             manga,
+                                            otherSourceManga.size,
                                         ) {
                                             val source = sourceManager.get(manga.source) ?: return@withUpdateNotification
                                             try {
-                                                // Update manga metadata
                                                 val networkManga = source.getMangaDetails(manga.toSManga())
                                                 val updatedManga = manga.prepUpdateCover(coverCache, networkManga, true)
                                                     .copyFrom(networkManga)
@@ -139,7 +205,6 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
                                                     logcat(LogPriority.ERROR) { "Manga doesn't exist anymore" }
                                                 }
 
-                                                // Update chapter metadata (including cover URLs)
                                                 try {
                                                     val chapters = source.getChapterList(manga.toSManga())
                                                     syncChaptersWithSource.await(chapters, manga, source, manualFetch = true)
@@ -147,7 +212,6 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
                                                     logcat(LogPriority.ERROR, e) { "Failed to sync chapters for ${manga.title}" }
                                                 }
                                             } catch (e: Throwable) {
-                                                // Ignore errors and continue
                                                 logcat(LogPriority.ERROR, e)
                                             }
                                         }
@@ -167,6 +231,7 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
         updatingManga: CopyOnWriteArrayList<Manga>,
         completed: AtomicInt,
         manga: Manga,
+        total: Int,
         block: suspend () -> Unit,
     ) = coroutineScope {
         ensureActive()
@@ -175,7 +240,7 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
         notifier.showProgressNotification(
             updatingManga,
             completed.load(),
-            mangaToUpdate.size,
+            total,
         )
 
         block()
@@ -187,7 +252,7 @@ class MetadataUpdateJob(private val context: Context, workerParams: WorkerParame
         notifier.showProgressNotification(
             updatingManga,
             completed.load(),
-            mangaToUpdate.size,
+            total,
         )
     }
 

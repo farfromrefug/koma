@@ -10,10 +10,12 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.IOException
@@ -28,18 +30,49 @@ class DownloadProvider(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
 
     private val downloadsDir: UniFile?
         get() = storageManager.getDownloadsDirectory()
 
+    private val localSourceDir: UniFile?
+        get() = storageManager.getLocalSourceDirectory()
+
     /**
      * Returns the download directory for a manga. For internal use only.
+     * If downloadToLocalSource is enabled, downloads go to local source folder instead.
      *
      * @param mangaTitle the title of the manga to query.
      * @param source the source of the manga.
      */
     internal fun getMangaDir(mangaTitle: String, source: Source): Result<UniFile> {
+        val downloadToLocal = downloadPreferences.downloadToLocalSource().get()
+
+        // If downloading to local source, put files directly in local source manga folder
+        if (downloadToLocal) {
+            val localDir = localSourceDir
+            if (localDir == null) {
+                logcat(LogPriority.ERROR) { "Failed to access local source directory" }
+                return Result.failure(
+                    IOException(context.stringResource(MR.strings.storage_failed_to_create_download_directory)),
+                )
+            }
+
+            val mangaDirName = getMangaDirName(mangaTitle)
+            val mangaDir = localDir.createDirectory(mangaDirName)
+            if (mangaDir == null) {
+                val displayablePath = localDir.displayablePath + "/$mangaDirName"
+                logcat(LogPriority.ERROR) { "Failed to create manga directory in local source: $displayablePath" }
+                return Result.failure(
+                    IOException(context.stringResource(MR.strings.storage_failed_to_create_directory, displayablePath)),
+                )
+            }
+
+            return Result.success(mangaDir)
+        }
+
+        // Original behavior - download to downloads folder with source subfolder
         val downloadsDir = downloadsDir
         if (downloadsDir == null) {
             logcat(LogPriority.ERROR) { "Failed to create download directory" }
@@ -77,6 +110,10 @@ class DownloadProvider(
      * @param source the source to query.
      */
     fun findSourceDir(source: Source): UniFile? {
+        // Check local source directory first if it's the local source
+        if (source.id == LocalSource.ID) {
+            return localSourceDir
+        }
         return downloadsDir?.findFile(getSourceDirName(source))
     }
 
@@ -87,8 +124,16 @@ class DownloadProvider(
      * @param source the source of the manga.
      */
     fun findMangaDir(mangaTitle: String, source: Source): UniFile? {
-        val sourceDir = findSourceDir(source)
-        return sourceDir?.findFile(getMangaDirName(mangaTitle))
+        val mangaDirName = getMangaDirName(mangaTitle)
+
+        // Check local source directory if downloadToLocalSource is enabled or if it's local source
+        if (downloadPreferences.downloadToLocalSource().get() || source.id == LocalSource.ID) {
+            localSourceDir?.findFile(mangaDirName)?.let { return it }
+        }
+
+        // Also check downloads directory
+        val sourceDir = downloadsDir?.findFile(getSourceDirName(source))
+        return sourceDir?.findFile(mangaDirName)
     }
 
     /**

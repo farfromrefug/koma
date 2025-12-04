@@ -8,6 +8,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,9 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import tachiyomi.presentation.core.theme.LocalEinkMode
 
 /**
  * ExtendedFloatingActionButton with custom transition between collapsed/expanded state.
+ * In E-ink mode, displays as an outlined button with no elevation.
  *
  * @see androidx.compose.material3.ExtendedFloatingActionButton
  */
@@ -46,14 +50,38 @@ fun ExtendedFloatingActionButton(
     contentColor: Color = contentColorFor(containerColor),
     elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(),
 ) {
+    val isEinkMode = LocalEinkMode.current
+
+    // E-ink mode: use outlined style with no elevation
+    val effectiveContainerColor = if (isEinkMode) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        containerColor
+    }
+    val effectiveContentColor = if (isEinkMode) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        contentColor
+    }
+    val effectiveElevation = if (isEinkMode) {
+        FloatingActionButtonDefaults.elevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp,
+        )
+    } else {
+        elevation
+    }
+
     FloatingActionButton(
         modifier = modifier,
         onClick = onClick,
         interactionSource = interactionSource,
         shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        elevation = elevation,
+        containerColor = effectiveContainerColor,
+        contentColor = effectiveContentColor,
+        elevation = effectiveElevation,
     ) {
         val minWidth by animateDpAsState(
             targetValue = if (expanded) ExtendedFabMinimumWidth else FabContainerWidth,
@@ -72,21 +100,30 @@ fun ExtendedFloatingActionButton(
             label = "startPadding",
         )
 
-        Row(
-            modifier = Modifier
-                .sizeIn(minWidth = minWidth)
-                .padding(start = startPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+        // Draw border in E-ink mode
+        Box(
+            modifier = if (isEinkMode) {
+                Modifier
+            } else {
+                Modifier
+            },
         ) {
-            icon()
-            AnimatedVisibility(
-                visible = expanded,
-                enter = ExtendedFabExpandAnimation,
-                exit = ExtendedFabCollapseAnimation,
+            Row(
+                modifier = Modifier
+                    .sizeIn(minWidth = minWidth)
+                    .padding(start = startPadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
             ) {
-                Box(modifier = Modifier.padding(start = ExtendedFabIconPadding, end = ExtendedFabTextPadding)) {
-                    text()
+                icon()
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = ExtendedFabExpandAnimation,
+                    exit = ExtendedFabCollapseAnimation,
+                ) {
+                    Box(modifier = Modifier.padding(start = ExtendedFabIconPadding, end = ExtendedFabTextPadding)) {
+                        text()
+                    }
                 }
             }
         }

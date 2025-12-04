@@ -248,7 +248,6 @@ private fun ColumnScope.DisplayPage(
     }
 
     // Chapter display mode (list/grid)
-    HeadingItem(MR.strings.chapter_display_mode)
     SettingsChipRow(MR.strings.chapter_display_mode) {
         chapterDisplayModes.map { (titleRes, mode) ->
             FilterChip(
@@ -263,7 +262,7 @@ private fun ColumnScope.DisplayPage(
     if (chapterDisplayMode != ChapterDisplayMode.List) {
         val configuration = LocalConfiguration.current
         val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        
+
         SliderItem(
             value = chapterGridColumns,
             valueRange = 0..10,

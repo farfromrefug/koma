@@ -119,6 +119,25 @@ class DownloadProvider(
     }
 
     /**
+     * Checks if a manga has downloads in the local source folder.
+     * This is used for "dual-source" behavior where manga downloaded to local source
+     * should be treated as local source for refresh operations.
+     *
+     * @param mangaTitle the title of the manga to query.
+     * @return true if manga has local source downloads and downloadToLocalSource is enabled.
+     */
+    fun hasLocalSourceDownloads(mangaTitle: String): Boolean {
+        if (!downloadPreferences.downloadToLocalSource().get()) {
+            return false
+        }
+        // Use the local source template for directory name
+        val mangaDirName = getLocalSourceMangaDirName(mangaTitle)
+        val mangaDir = localSourceDir?.findFile(mangaDirName) ?: return false
+        // Check if the manga folder has any chapters
+        return mangaDir.listFiles()?.isNotEmpty() == true
+    }
+
+    /**
      * Returns the download directory for a manga if it exists.
      *
      * @param mangaTitle the title of the manga to query.

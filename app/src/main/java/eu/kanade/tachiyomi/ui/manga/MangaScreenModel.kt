@@ -33,6 +33,7 @@ import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
@@ -88,6 +89,7 @@ import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -106,6 +108,8 @@ class MangaScreenModel(
     private val downloadManager: DownloadManager = Injekt.get(),
     private val downloadCache: DownloadCache = Injekt.get(),
     private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val downloadProvider: DownloadProvider = Injekt.get(),
+    private val sourceManager: SourceManager = Injekt.get(),
     private val getMangaAndChapters: GetMangaWithChapters = Injekt.get(),
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
     private val getAvailableScanlators: GetAvailableScanlators = Injekt.get(),
@@ -261,6 +265,22 @@ class MangaScreenModel(
 
     fun fetchAllFromSource(manualFetch: Boolean = true) {
         screenModelScope.launch {
+            val state = successState ?: return@launch
+
+            // If manga has local source downloads (dual-source mode), skip remote fetch
+            if (downloadProvider.hasLocalSourceDownloads(state.manga.title)) {
+                // For local source downloads, refresh from local source instead
+                updateSuccessState { it.copy(isRefreshingData = true) }
+                try {
+                    withIOContext {
+                        fetchLocalSourceChapters()
+                    }
+                } finally {
+                    updateSuccessState { it.copy(isRefreshingData = false) }
+                }
+                return@launch
+            }
+
             updateSuccessState { it.copy(isRefreshingData = true) }
             val fetchFromSourceTasks = listOf(
                 async { fetchMangaFromSource(manualFetch) },
@@ -268,6 +288,40 @@ class MangaScreenModel(
             )
             fetchFromSourceTasks.awaitAll()
             updateSuccessState { it.copy(isRefreshingData = false) }
+        }
+    }
+
+    /**
+     * Fetch chapters from local source when manga has local downloads.
+     * This is used for "dual-source" behavior.
+     */
+    private suspend fun fetchLocalSourceChapters() {
+        val state = successState ?: return
+        try {
+            val localSource = sourceManager.get(LocalSource.ID)
+                as? LocalSource ?: return
+
+            // Create a local manga SManga with the same title to fetch chapters
+            val localManga = state.manga.toSManga().apply {
+                url = "/${downloadProvider.getLocalSourceMangaDirName(state.manga.title)}"
+            }
+
+            // Fetch chapters from local source
+            val chapters = localSource.getChapterList(localManga)
+
+            // Sync the local chapters with the database
+            // Use localSource for syncing since chapters are from local source
+            syncChaptersWithSource.await(
+                chapters,
+                state.manga,
+                localSource,
+                manualFetch = true,
+            )
+        } catch (e: Throwable) {
+            logcat(LogPriority.ERROR, e)
+            screenModelScope.launch {
+                snackbarHostState.showSnackbar(message = with(context) { e.formattedMessage })
+            }
         }
     }
 

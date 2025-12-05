@@ -11,16 +11,13 @@ import kotlinx.coroutines.sync.withPermit
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.concurrent.atomics.incrementAndFetch
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Tests for concurrent processing patterns used in local source chapter processing.
  * These tests verify that bounded concurrency works correctly and prevents
  * memory exhaustion from unbounded parallelism.
  */
-@OptIn(ExperimentalAtomicApi::class)
 @Execution(ExecutionMode.CONCURRENT)
 class LocalSourceConcurrencyTest {
 
@@ -33,25 +30,21 @@ class LocalSourceConcurrencyTest {
         val maxConcurrency = 3
         val totalTasks = 10
         val semaphore = Semaphore(maxConcurrency)
-        val currentConcurrent = AtomicInt(0)
-        val maxObservedConcurrent = AtomicInt(0)
+        val currentConcurrent = AtomicInteger(0)
+        val maxObservedConcurrent = AtomicInteger(0)
 
         coroutineScope {
             (1..totalTasks).map { taskId ->
                 async {
                     semaphore.withPermit {
-                        val current = currentConcurrent.incrementAndFetch()
+                        val current = currentConcurrent.incrementAndGet()
                         // Track max concurrent
-                        synchronized(maxObservedConcurrent) {
-                            if (current > maxObservedConcurrent.load()) {
-                                maxObservedConcurrent.store(current)
-                            }
-                        }
+                        maxObservedConcurrent.updateAndGet { maxOf(it, current) }
                         
                         // Simulate some work
                         delay(10)
                         
-                        currentConcurrent.decrementAndFetch()
+                        currentConcurrent.decrementAndGet()
                         taskId
                     }
                 }
@@ -59,8 +52,8 @@ class LocalSourceConcurrencyTest {
         }
 
         // Verify that concurrent execution was bounded
-        maxObservedConcurrent.load() shouldBe maxConcurrency
-        currentConcurrent.load() shouldBe 0
+        maxObservedConcurrent.get() shouldBe maxConcurrency
+        currentConcurrent.get() shouldBe 0
     }
 
     /**
@@ -71,21 +64,21 @@ class LocalSourceConcurrencyTest {
         val maxConcurrency = 2
         val totalTasks = 20
         val semaphore = Semaphore(maxConcurrency)
-        val completedTasks = AtomicInt(0)
+        val completedTasks = AtomicInteger(0)
 
         coroutineScope {
             (1..totalTasks).map { taskId ->
                 async {
                     semaphore.withPermit {
                         delay(5) // Simulate work
-                        completedTasks.incrementAndFetch()
+                        completedTasks.incrementAndGet()
                         taskId
                     }
                 }
             }.awaitAll()
         }
 
-        completedTasks.load() shouldBe totalTasks
+        completedTasks.get() shouldBe totalTasks
     }
 
     /**
@@ -96,7 +89,7 @@ class LocalSourceConcurrencyTest {
         val maxConcurrency = 3
         val totalTasks = 10
         val semaphore = Semaphore(maxConcurrency)
-        val successfulTasks = AtomicInt(0)
+        val successfulTasks = AtomicInteger(0)
 
         val results = coroutineScope {
             (1..totalTasks).map { taskId ->
@@ -107,7 +100,7 @@ class LocalSourceConcurrencyTest {
                                 throw RuntimeException("Simulated failure for task $taskId")
                             }
                             delay(5)
-                            successfulTasks.incrementAndFetch()
+                            successfulTasks.incrementAndGet()
                             Result.success(taskId)
                         } catch (e: Exception) {
                             Result.failure(e)
@@ -123,20 +116,6 @@ class LocalSourceConcurrencyTest {
         
         successes shouldBe (totalTasks - totalTasks / 3) // Tasks not divisible by 3 succeed
         failures shouldBe (totalTasks / 3) // Tasks divisible by 3 fail
-        successfulTasks.load() shouldBe successes
-    }
-    
-    private fun AtomicInt.decrementAndFetch(): Int {
-        return addAndFetch(-1)
-    }
-    
-    private fun AtomicInt.addAndFetch(delta: Int): Int {
-        var current: Int
-        var new: Int
-        do {
-            current = load()
-            new = current + delta
-        } while (!compareAndSet(current, new))
-        return new
+        successfulTasks.get() shouldBe successes
     }
 }

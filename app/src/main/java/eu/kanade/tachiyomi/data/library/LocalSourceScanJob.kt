@@ -142,7 +142,9 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
         }
 
         // Use semaphore to limit concurrent manga processing
-        val semaphore = Semaphore(MANGA_PROCESSING_CONCURRENCY)
+        val concurrency = libraryPreferences.localSourceMangaProcessingWorkers().get()
+            .coerceIn(1, MAX_MANGA_PROCESSING_CONCURRENCY)
+        val semaphore = Semaphore(concurrency)
 
         coroutineScope {
             localMangas.map { sManga ->
@@ -244,8 +246,14 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
         /**
          * Maximum number of manga to process concurrently during scan.
          * This bounds memory usage when scanning folders with many manga.
+         * The actual value is configurable via [LibraryPreferences.localSourceMangaProcessingWorkers].
          */
-        private const val MANGA_PROCESSING_CONCURRENCY = 2
+        private const val MAX_MANGA_PROCESSING_CONCURRENCY = 5
+
+        /**
+         * Default number of manga to process concurrently.
+         */
+        private const val DEFAULT_MANGA_PROCESSING_CONCURRENCY = 2
 
         fun cancelAllWorks(context: Context) {
             context.workManager.cancelAllWorkByTag(TAG)

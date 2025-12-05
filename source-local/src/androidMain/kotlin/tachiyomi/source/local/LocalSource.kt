@@ -39,6 +39,7 @@ import tachiyomi.core.metadata.comicinfo.copyFromComicInfo
 import tachiyomi.core.metadata.comicinfo.getComicInfo
 import tachiyomi.core.metadata.tachiyomi.MangaDetails
 import tachiyomi.domain.chapter.service.ChapterRecognition
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.filter.OrderBy
@@ -61,6 +62,7 @@ actual class LocalSource(
 
     private val json: Json by injectLazy()
     private val xml: XML by injectLazy()
+    private val libraryPreferences: LibraryPreferences by injectLazy()
 
     @Suppress("PrivatePropertyName")
     private val PopularFilters = FilterList(OrderBy.Popular(context))
@@ -288,7 +290,9 @@ actual class LocalSource(
         }
         
         // Use bounded worker pool with semaphore for memory-limited processing
-        val semaphore = Semaphore(CHAPTER_PROCESSING_CONCURRENCY)
+        val concurrency = libraryPreferences.localSourceChapterProcessingWorkers().get()
+            .coerceIn(1, MAX_CHAPTER_PROCESSING_CONCURRENCY)
+        val semaphore = Semaphore(concurrency)
         var coverGenerated = false
         
         val chapters = coroutineScope {
@@ -419,7 +423,9 @@ actual class LocalSource(
         emit(ChapterLoadState.Enumerated(placeholders, chapterFiles.size))
 
         // Phase 2: Process chapters with bounded concurrency and emit updates
-        val semaphore = Semaphore(CHAPTER_PROCESSING_CONCURRENCY)
+        val concurrency = libraryPreferences.localSourceChapterProcessingWorkers().get()
+            .coerceIn(1, MAX_CHAPTER_PROCESSING_CONCURRENCY)
+        val semaphore = Semaphore(concurrency)
         val processedChapters = mutableListOf<SChapter>()
         var coverGenerated = false
 
@@ -434,12 +440,15 @@ actual class LocalSource(
                                     processedChapters.add(chapter)
                                 }
                                 
-                                // Generate cover.jpg early
+                                // Generate cover.jpg early (exception intentionally caught and ignored
+                                // as cover generation is best-effort and shouldn't block chapter processing)
                                 if (!coverGenerated && manga.thumbnail_url.isNullOrBlank()) {
                                     try {
                                         updateCover(chapter, manga)
                                         coverGenerated = true
-                                    } catch (_: Exception) { }
+                                    } catch (_: Exception) {
+                                        // Cover generation failed, will try with next chapter
+                                    }
                                 }
                             }
                         }
@@ -610,8 +619,14 @@ actual class LocalSource(
          * Maximum number of concurrent chapter processing tasks.
          * This bounds memory usage when processing large manga with many chapters.
          * Each worker may open an archive file for metadata/cover extraction.
+         * The actual value is configurable via [LibraryPreferences.localSourceChapterProcessingWorkers].
          */
-        const val CHAPTER_PROCESSING_CONCURRENCY = 3
+        const val MAX_CHAPTER_PROCESSING_CONCURRENCY = 10
+        
+        /**
+         * Default number of concurrent chapter processing workers.
+         */
+        const val DEFAULT_CHAPTER_PROCESSING_CONCURRENCY = 3
     }
 }
 

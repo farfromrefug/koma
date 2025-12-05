@@ -43,7 +43,6 @@ fun SourcesScreen(
     state: SourcesScreenModel.State,
     contentPadding: PaddingValues,
     onClickItem: (Source, Listing) -> Unit,
-    onClickSourceItem: (Source) -> Unit,
     onClickPin: (Source) -> Unit,
     onLongClickItem: (Source) -> Unit,
 ) {
@@ -83,7 +82,6 @@ fun SourcesScreen(
                             modifier = Modifier.animateItem(),
                             source = model.source,
                             onClickItem = onClickItem,
-                            onClickSourceItem = onClickSourceItem,
                             onLongClickItem = onLongClickItem,
                             onClickPin = onClickPin,
                         )
@@ -112,7 +110,6 @@ private fun SourceHeader(
 private fun SourceItem(
     source: Source,
     onClickItem: (Source, Listing) -> Unit,
-    onClickSourceItem: (Source) -> Unit,
     onLongClickItem: (Source) -> Unit,
     onClickPin: (Source) -> Unit,
     modifier: Modifier = Modifier,
@@ -120,7 +117,7 @@ private fun SourceItem(
     BaseSourceItem(
         modifier = modifier,
         source = source,
-        onClickItem = { onClickSourceItem(source) },
+        onClickItem = { onClickItem(source, Listing.Popular) },
         onLongClickItem = { onLongClickItem(source) },
         action = {
             if (source.supportsLatest) {

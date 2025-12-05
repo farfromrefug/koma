@@ -20,11 +20,6 @@ class SourcePreferences(
         LibraryDisplayMode.Serializer::deserialize,
     )
 
-    fun sourceBrowseListing() = preferenceStore.getEnum(
-        "pref_source_browse_listing",
-        SourceBrowseListing.Popular,
-    )
-
     fun enabledLanguages() = preferenceStore.getStringSet("source_languages", LocaleHelper.getDefaultEnabledLanguages())
 
     fun disabledSources() = preferenceStore.getStringSet("hidden_catalogues", emptySet())
@@ -79,9 +74,4 @@ class SourcePreferences(
     fun migrationHideUnmatched() = preferenceStore.getBoolean("migration_hide_unmatched", false)
 
     fun migrationHideWithoutUpdates() = preferenceStore.getBoolean("migration_hide_without_updates", false)
-
-    enum class SourceBrowseListing {
-        Popular,
-        Latest,
-    }
 }

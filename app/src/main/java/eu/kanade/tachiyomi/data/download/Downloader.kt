@@ -7,6 +7,7 @@ import eu.kanade.domain.manga.model.getComicInfo
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.library.LibraryUpdateNotifier
+import eu.kanade.tachiyomi.data.library.LocalSourceScanJob
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Page
@@ -57,6 +58,7 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
@@ -339,11 +341,22 @@ class Downloader(
             return
         }
 
-        val chapterDirname = provider.getChapterDirName(
-            download.chapter.name,
-            download.chapter.scanlator,
-            download.chapter.url,
-        )
+        // Use local source template if downloading to local source
+        val chapterDirname = if (downloadPreferences.downloadToLocalSource().get()) {
+            provider.getLocalSourceChapterDirName(
+                download.chapter.name,
+                download.chapter.chapterNumber,
+                download.chapter.scanlator,
+                download.manga.title,
+                download.chapter.url,
+            )
+        } else {
+            provider.getChapterDirName(
+                download.chapter.name,
+                download.chapter.scanlator,
+                download.chapter.url,
+            )
+        }
         val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
 
         try {
@@ -411,11 +424,26 @@ class Downloader(
             } else {
                 tmpDir.renameTo(chapterDirname)
             }
-            cache.addChapter(chapterDirname, mangaDir, download.manga)
+
+            // Add chapter to cache - use LocalSource.ID when downloading to local source
+            val sourceIdForCache = if (downloadPreferences.downloadToLocalSource().get()) {
+                LocalSource.ID
+            } else {
+                download.manga.source
+            }
+            cache.addChapter(chapterDirname, mangaDir, download.manga, sourceIdForCache)
 
             DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = Download.State.DOWNLOADED
+
+            // If downloading to local source, trigger a local source scan
+            // to add the manga to library and update metadata (cover.jpg, ComicInfo.xml)
+            // This is separate from the "auto add local manga to library" setting which
+            // controls background scanning for pre-existing local files
+            if (downloadPreferences.downloadToLocalSource().get()) {
+                LocalSourceScanJob.startNow(context)
+            }
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             // If the page list threw, it will resume here

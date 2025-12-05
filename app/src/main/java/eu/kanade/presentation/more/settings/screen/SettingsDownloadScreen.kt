@@ -8,16 +8,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.util.fastMap
+import androidx.core.content.ContextCompat
 import eu.kanade.presentation.category.visualName
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
+import eu.kanade.tachiyomi.data.library.LocalSourceScanJob
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
@@ -37,6 +41,7 @@ object SettingsDownloadScreen : SearchableSettings {
         val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
 
         val downloadPreferences = remember { Injekt.get<DownloadPreferences>() }
+        val libraryPreferences = remember { Injekt.get<LibraryPreferences>() }
         val parallelSourceLimit by downloadPreferences.parallelSourceLimit().collectAsState()
         val parallelPageLimit by downloadPreferences.parallelPageLimit().collectAsState()
         return listOf(
@@ -75,6 +80,10 @@ object SettingsDownloadScreen : SearchableSettings {
                 allCategories = allCategories,
             ),
             getDownloadAheadGroup(downloadPreferences = downloadPreferences),
+            getLocalSourceGroup(
+                downloadPreferences = downloadPreferences,
+                libraryPreferences = libraryPreferences,
+            ),
         )
     }
 
@@ -207,6 +216,47 @@ object SettingsDownloadScreen : SearchableSettings {
                     title = stringResource(MR.strings.auto_download_while_reading),
                 ),
                 Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.download_ahead_info)),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getLocalSourceGroup(
+        downloadPreferences: DownloadPreferences,
+        libraryPreferences: LibraryPreferences,
+    ): Preference.PreferenceGroup {
+        val context = LocalContext.current
+        val downloadToLocalSource by downloadPreferences.downloadToLocalSource().collectAsState()
+
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.local_source),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = downloadPreferences.downloadToLocalSource(),
+                    title = stringResource(MR.strings.pref_download_to_local_source),
+                    subtitle = stringResource(MR.strings.pref_download_to_local_source_summary),
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = downloadPreferences.localSourceMangaFolderTemplate(),
+                    title = stringResource(MR.strings.pref_local_source_manga_folder_template),
+                    subtitle = stringResource(MR.strings.pref_local_source_manga_folder_template_summary),
+                    enabled = downloadToLocalSource,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = downloadPreferences.localSourceChapterFolderTemplate(),
+                    title = stringResource(MR.strings.pref_local_source_chapter_folder_template),
+                    subtitle = stringResource(MR.strings.pref_local_source_chapter_folder_template_summary),
+                    enabled = downloadToLocalSource,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = libraryPreferences.autoAddLocalMangaToLibrary(),
+                    title = stringResource(MR.strings.pref_auto_add_local_manga_to_library),
+                    subtitle = stringResource(MR.strings.pref_auto_add_local_manga_to_library_summary),
+                    onValueChanged = {
+                        ContextCompat.getMainExecutor(context).execute { LocalSourceScanJob.setupTask(context) }
+                        true
+                    },
+                ),
             ),
         )
     }

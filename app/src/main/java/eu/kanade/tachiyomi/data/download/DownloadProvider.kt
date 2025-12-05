@@ -10,10 +10,12 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.IOException
@@ -28,18 +30,50 @@ class DownloadProvider(
     private val context: Context,
     private val storageManager: StorageManager = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val downloadPreferences: DownloadPreferences = Injekt.get(),
 ) {
 
     private val downloadsDir: UniFile?
         get() = storageManager.getDownloadsDirectory()
 
+    private val localSourceDir: UniFile?
+        get() = storageManager.getLocalSourceDirectory()
+
     /**
      * Returns the download directory for a manga. For internal use only.
+     * If downloadToLocalSource is enabled, downloads go to local source folder instead.
      *
      * @param mangaTitle the title of the manga to query.
      * @param source the source of the manga.
      */
     internal fun getMangaDir(mangaTitle: String, source: Source): Result<UniFile> {
+        val downloadToLocal = downloadPreferences.downloadToLocalSource().get()
+
+        // If downloading to local source, put files directly in local source manga folder
+        if (downloadToLocal) {
+            val localDir = localSourceDir
+            if (localDir == null) {
+                logcat(LogPriority.ERROR) { "Failed to access local source directory" }
+                return Result.failure(
+                    IOException(context.stringResource(MR.strings.storage_failed_to_create_download_directory)),
+                )
+            }
+
+            // Use template for local source manga folder name
+            val mangaDirName = getLocalSourceMangaDirName(mangaTitle)
+            val mangaDir = localDir.createDirectory(mangaDirName)
+            if (mangaDir == null) {
+                val displayablePath = localDir.displayablePath + "/$mangaDirName"
+                logcat(LogPriority.ERROR) { "Failed to create manga directory in local source: $displayablePath" }
+                return Result.failure(
+                    IOException(context.stringResource(MR.strings.storage_failed_to_create_directory, displayablePath)),
+                )
+            }
+
+            return Result.success(mangaDir)
+        }
+
+        // Original behavior - download to downloads folder with source subfolder
         val downloadsDir = downloadsDir
         if (downloadsDir == null) {
             logcat(LogPriority.ERROR) { "Failed to create download directory" }
@@ -77,7 +111,30 @@ class DownloadProvider(
      * @param source the source to query.
      */
     fun findSourceDir(source: Source): UniFile? {
+        // Local source always uses local source directory
+        if (source.id == LocalSource.ID) {
+            return localSourceDir
+        }
         return downloadsDir?.findFile(getSourceDirName(source))
+    }
+
+    /**
+     * Checks if a manga has downloads in the local source folder.
+     * This is used for "dual-source" behavior where manga downloaded to local source
+     * should be treated as local source for refresh operations.
+     *
+     * @param mangaTitle the title of the manga to query.
+     * @return true if manga has local source downloads and downloadToLocalSource is enabled.
+     */
+    fun hasLocalSourceDownloads(mangaTitle: String): Boolean {
+        if (!downloadPreferences.downloadToLocalSource().get()) {
+            return false
+        }
+        // Use the local source template for directory name
+        val mangaDirName = getLocalSourceMangaDirName(mangaTitle)
+        val mangaDir = localSourceDir?.findFile(mangaDirName) ?: return false
+        // Check if the manga folder has any chapters
+        return mangaDir.listFiles()?.isNotEmpty() == true
     }
 
     /**
@@ -87,8 +144,21 @@ class DownloadProvider(
      * @param source the source of the manga.
      */
     fun findMangaDir(mangaTitle: String, source: Source): UniFile? {
-        val sourceDir = findSourceDir(source)
-        return sourceDir?.findFile(getMangaDirName(mangaTitle))
+        val mangaDirName = getMangaDirName(mangaTitle)
+
+        // Local source always uses local source directory
+        if (source.id == LocalSource.ID) {
+            return localSourceDir?.findFile(mangaDirName)
+        }
+
+        // For other sources, check local source directory first if downloadToLocalSource is enabled
+        if (downloadPreferences.downloadToLocalSource().get()) {
+            localSourceDir?.findFile(mangaDirName)?.let { return it }
+        }
+
+        // Check downloads directory for non-local sources
+        val sourceDir = downloadsDir?.findFile(getSourceDirName(source))
+        return sourceDir?.findFile(mangaDirName)
     }
 
     /**
@@ -153,6 +223,20 @@ class DownloadProvider(
     }
 
     /**
+     * Returns the download directory name for a manga using the local source template.
+     *
+     * @param mangaTitle the title of the manga to query.
+     */
+    fun getLocalSourceMangaDirName(mangaTitle: String): String {
+        val template = downloadPreferences.localSourceMangaFolderTemplate().get()
+        val name = template.replace(DownloadPreferences.MANGA_TITLE_PLACEHOLDER, mangaTitle)
+        return DiskUtil.buildValidFilename(
+            name,
+            disallowNonAscii = libraryPreferences.disallowNonAsciiFilenames().get(),
+        )
+    }
+
+    /**
      * Returns the chapter directory name for a chapter.
      *
      * @param chapterName the name of the chapter to query.
@@ -171,6 +255,54 @@ class DownloadProvider(
         }
         // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
         dirName = DiskUtil.buildValidFilename(dirName, DiskUtil.MAX_FILE_NAME_BYTES - 11, disallowNonAsciiFilenames)
+        dirName += "_" + md5(chapterUrl).take(6)
+        return dirName
+    }
+
+    /**
+     * Returns the chapter directory name for a chapter using the local source template.
+     *
+     * @param chapterName the name of the chapter to query.
+     * @param chapterNumber the chapter number.
+     * @param chapterScanlator scanlator of the chapter to query.
+     * @param mangaTitle the title of the manga.
+     * @param chapterUrl url of the chapter to query.
+     */
+    fun getLocalSourceChapterDirName(
+        chapterName: String,
+        chapterNumber: Double,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        chapterUrl: String,
+    ): String {
+        val template = downloadPreferences.localSourceChapterFolderTemplate().get()
+        val sanitizedChapterName = sanitizeChapterName(chapterName)
+
+        // Format chapter number (remove trailing zeros)
+        val chapterNumberStr = if (chapterNumber == chapterNumber) {
+            chapterNumber.toLong().toString()
+        } else {
+            chapterNumber.toString()
+        }
+
+        var dirName = template
+            .replace(DownloadPreferences.CHAPTER_NAME_PLACEHOLDER, sanitizedChapterName)
+            .replace(DownloadPreferences.CHAPTER_NUMBER_PLACEHOLDER, chapterNumberStr)
+            .replace(DownloadPreferences.CHAPTER_SCANLATOR_PLACEHOLDER, chapterScanlator ?: "")
+            .replace(DownloadPreferences.MANGA_TITLE_PLACEHOLDER, mangaTitle)
+            .trim()
+
+        // If template result is empty, fall back to chapter name
+        if (dirName.isBlank()) {
+            dirName = sanitizedChapterName
+        }
+
+        // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
+        dirName = DiskUtil.buildValidFilename(
+            dirName,
+            DiskUtil.MAX_FILE_NAME_BYTES - 11,
+            libraryPreferences.disallowNonAsciiFilenames().get(),
+        )
         dirName += "_" + md5(chapterUrl).take(6)
         return dirName
     }
@@ -231,6 +363,16 @@ class DownloadProvider(
     fun isChapterDirNameChanged(oldChapter: Chapter, newChapter: Chapter): Boolean {
         return getChapterDirName(oldChapter.name, oldChapter.scanlator, oldChapter.url) !=
             getChapterDirName(newChapter.name, newChapter.scanlator, newChapter.url)
+    }
+
+    /**
+     * Returns the hash suffix used at the end of chapter directory names.
+     * This can be used to identify chapters regardless of the template used.
+     *
+     * @param chapterUrl the url of the chapter.
+     */
+    fun getChapterUrlHashSuffix(chapterUrl: String): String {
+        return "_" + md5(chapterUrl).take(6)
     }
 
     /**

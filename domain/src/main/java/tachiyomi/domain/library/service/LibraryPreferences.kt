@@ -208,6 +208,9 @@ class LibraryPreferences(
 
     fun disallowNonAsciiFilenames() = preferenceStore.getBoolean("disallow_non_ascii_filenames", false)
 
+    // Local source settings
+    fun autoAddLocalMangaToLibrary() = preferenceStore.getBoolean("auto_add_local_manga_to_library", false)
+
     // endregion
 
     enum class ChapterSwipeAction {

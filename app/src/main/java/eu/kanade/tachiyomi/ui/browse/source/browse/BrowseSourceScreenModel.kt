@@ -57,7 +57,7 @@ class BrowseSourceScreenModel(
     private val sourceId: Long,
     listingQuery: String?,
     sourceManager: SourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val coverCache: CoverCache = Injekt.get(),
     private val getRemoteManga: GetRemoteManga = Injekt.get(),
@@ -138,6 +138,12 @@ class BrowseSourceScreenModel(
 
     fun setListing(listing: Listing) {
         mutableState.update { it.copy(listing = listing, toolbarQuery = null) }
+        // Persist the listing preference when user changes it
+        when (listing) {
+            is Listing.Popular -> sourcePreferences.sourceBrowseListing().set(SourcePreferences.SourceBrowseListing.Popular)
+            is Listing.Latest -> sourcePreferences.sourceBrowseListing().set(SourcePreferences.SourceBrowseListing.Latest)
+            is Listing.Search -> { /* Don't persist search queries */ }
+        }
     }
 
     fun setFilters(filters: FilterList) {

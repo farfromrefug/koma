@@ -7,27 +7,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.browse.SourceOptionsDialog
 import eu.kanade.presentation.browse.SourcesScreen
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
+import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel.Listing
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 @Composable
 fun Screen.sourcesTab(): TabContent {
     val navigator = LocalNavigator.currentOrThrow
     val screenModel = rememberScreenModel { SourcesScreenModel() }
     val state by screenModel.state.collectAsState()
+    val sourcePreferences = remember { Injekt.get<SourcePreferences>() }
 
     return TabContent(
         titleRes = MR.strings.label_sources,
@@ -48,6 +54,17 @@ fun Screen.sourcesTab(): TabContent {
                 state = state,
                 contentPadding = contentPadding,
                 onClickItem = { source, listing ->
+                    navigator.push(BrowseSourceScreen(source.id, listing.query))
+                },
+                onClickSourceItem = { source ->
+                    // Use persisted listing preference when clicking directly on a source
+                    val persistedListing = sourcePreferences.sourceBrowseListing().get()
+                    val listing = when (persistedListing) {
+                        SourcePreferences.SourceBrowseListing.Latest -> {
+                            if (source.supportsLatest) Listing.Latest else Listing.Popular
+                        }
+                        SourcePreferences.SourceBrowseListing.Popular -> Listing.Popular
+                    }
                     navigator.push(BrowseSourceScreen(source.id, listing.query))
                 },
                 onClickPin = screenModel::togglePin,

@@ -76,6 +76,7 @@ import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.model.NoChaptersException
 import tachiyomi.domain.chapter.service.calculateChapterGap
 import tachiyomi.domain.chapter.service.getChapterSort
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
@@ -104,6 +105,7 @@ class MangaScreenModel(
     private val trackChapter: TrackChapter = Injekt.get(),
     private val downloadManager: DownloadManager = Injekt.get(),
     private val downloadCache: DownloadCache = Injekt.get(),
+    private val downloadPreferences: DownloadPreferences = Injekt.get(),
     private val getMangaAndChapters: GetMangaWithChapters = Injekt.get(),
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
     private val getAvailableScanlators: GetAvailableScanlators = Injekt.get(),
@@ -670,7 +672,11 @@ class MangaScreenModel(
                 downloadChapters(chapters)
             }
 
-            if (!isFavorited && !successState.hasPromptedToAddBefore) {
+            // Don't show snackbar if auto-add to library is enabled for local source downloads
+            val shouldAutoAdd = downloadPreferences.downloadToLocalSource().get() &&
+                libraryPreferences.autoAddLocalMangaToLibrary().get()
+
+            if (!isFavorited && !successState.hasPromptedToAddBefore && !shouldAutoAdd) {
                 updateSuccessState { state ->
                     state.copy(hasPromptedToAddBefore = true)
                 }

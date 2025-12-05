@@ -928,6 +928,9 @@ class MangaScreenModel(
         }
 
         screenModelScope.launchIO {
+            val coverCache: eu.kanade.tachiyomi.data.cache.CoverCache = Injekt.get()
+            val coverManager: tachiyomi.source.local.image.LocalCoverManager = Injekt.get()
+            
             val result = try {
                 val inputStream = when {
                     coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> {
@@ -935,6 +938,10 @@ class MangaScreenModel(
                         val client = Injekt.get<okhttp3.Call.Factory>()
                         val request = okhttp3.Request.Builder().url(coverUrl).build()
                         val response = client.newCall(request).execute()
+                        if (!response.isSuccessful) {
+                            response.close()
+                            throw Exception("Failed to fetch cover: ${response.code}")
+                        }
                         response.body.byteStream()
                     }
                     coverUrl.startsWith("content://") -> {
@@ -954,7 +961,7 @@ class MangaScreenModel(
                 }
 
                 inputStream.use { stream ->
-                    manga.editCover(Injekt.get(), stream, updateManga, Injekt.get())
+                    manga.editCover(coverManager, stream, updateManga, coverCache)
                 }
 
                 if (manga.isLocal() || manga.favorite) {

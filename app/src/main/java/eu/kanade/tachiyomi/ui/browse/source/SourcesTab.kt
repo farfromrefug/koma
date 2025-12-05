@@ -50,12 +50,14 @@ fun Screen.sourcesTab(): TabContent {
             ),
         ),
         content = { contentPadding, snackbarHostState ->
+            val navigateToSource = { source: Source, listing: Listing ->
+                navigator.push(BrowseSourceScreen(source.id, listing.query))
+            }
+
             SourcesScreen(
                 state = state,
                 contentPadding = contentPadding,
-                onClickItem = { source, listing ->
-                    navigator.push(BrowseSourceScreen(source.id, listing.query))
-                },
+                onClickItem = navigateToSource,
                 onClickSourceItem = { source ->
                     // Use persisted listing preference when clicking directly on a source
                     val persistedListing = sourcePreferences.sourceBrowseListing().get()
@@ -65,7 +67,7 @@ fun Screen.sourcesTab(): TabContent {
                         }
                         SourcePreferences.SourceBrowseListing.Popular -> Listing.Popular
                     }
-                    navigator.push(BrowseSourceScreen(source.id, listing.query))
+                    navigateToSource(source, listing)
                 },
                 onClickPin = screenModel::togglePin,
                 onLongClickItem = screenModel::showSourceDialog,

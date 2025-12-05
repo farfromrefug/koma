@@ -145,8 +145,10 @@ actual class LocalSource(
         }
 
         // Augment manga details based on metadata files
+        var mangaDirPath: String? = null
         try {
             val mangaDir = fileSystem.getMangaDirectory(manga.url) ?: error("${manga.url} is not a valid directory")
+            mangaDirPath = mangaDir.filePath ?: mangaDir.uri.toString()
             val mangaDirFiles = mangaDir.listFiles().orEmpty()
 
             val comicInfoFile = mangaDirFiles
@@ -200,7 +202,10 @@ actual class LocalSource(
                 }
             }
         } catch (e: Throwable) {
-            logcat(LogPriority.ERROR, e) { "Error setting manga details from local metadata for ${manga.title}" }
+            val pathInfo = if (mangaDirPath != null) " (path: $mangaDirPath)" else ""
+            logcat(LogPriority.ERROR, e) {
+                "Error setting manga details from local metadata for ${manga.title}$pathInfo"
+            }
         }
 
         return@withIOContext manga

@@ -277,6 +277,9 @@ class ReaderActivity : BaseActivity() {
                     is ReaderViewModel.Event.SetCoverResult -> {
                         onSetAsCoverResult(event.result)
                     }
+                    is ReaderViewModel.Event.LoadChapterColorFilter -> {
+                        event.colorFilter?.let { viewModel.applyColorFilterToPreferences(it) }
+                    }
                 }
             }
             .launchIn(lifecycleScope)
@@ -290,6 +293,11 @@ class ReaderActivity : BaseActivity() {
                 readerState = viewModel.state,
                 onChangeReadingMode = viewModel::setMangaReadingMode,
                 onChangeOrientation = viewModel::setMangaOrientationType,
+                onSaveChapterColorFilter = {
+                    viewModel.createColorFilterFromPreferences()?.let { colorFilter ->
+                        viewModel.saveChapterColorFilter(colorFilter)
+                    }
+                },
             )
         }
 

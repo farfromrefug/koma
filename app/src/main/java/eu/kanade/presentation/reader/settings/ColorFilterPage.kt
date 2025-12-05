@@ -5,13 +5,18 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.core.graphics.alpha
 import androidx.core.graphics.blue
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.Companion.ColorFilterMode
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
@@ -23,7 +28,37 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel) {
+    val savePerChapter by screenModel.preferences.saveColorFiltersPerChapter().collectAsState()
+    
+    // Auto-save color filters when they change and per-chapter saving is enabled
     val customBrightness by screenModel.preferences.customBrightness().collectAsState()
+    val customBrightnessValue by screenModel.preferences.customBrightnessValue().collectAsState()
+    val colorFilter by screenModel.preferences.colorFilter().collectAsState()
+    val colorFilterValue by screenModel.preferences.colorFilterValue().collectAsState()
+    val colorFilterMode by screenModel.preferences.colorFilterMode().collectAsState()
+    val grayscale by screenModel.preferences.grayscale().collectAsState()
+    val invertedColors by screenModel.preferences.invertedColors().collectAsState()
+    val sharpenFilter by screenModel.preferences.sharpenFilter().collectAsState()
+    val sharpenScale by screenModel.preferences.sharpenFilterScale().collectAsState()
+
+    // Save color filters when any setting changes (debounced to avoid excessive writes)
+    LaunchedEffect(
+        savePerChapter,
+        customBrightness,
+        customBrightnessValue,
+        colorFilter,
+        colorFilterValue,
+        colorFilterMode,
+        grayscale,
+        invertedColors,
+        sharpenFilter,
+        sharpenScale,
+    ) {
+        if (savePerChapter) {
+            screenModel.onSaveChapterColorFilter()
+        }
+    }
+
     CheckboxItem(
         label = stringResource(MR.strings.pref_custom_brightness),
         pref = screenModel.preferences.customBrightness(),
@@ -36,7 +71,6 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
      * 0 sets system brightness and hides the overlay.
      */
     if (customBrightness) {
-        val customBrightnessValue by screenModel.preferences.customBrightnessValue().collectAsState()
         SliderItem(
             value = customBrightnessValue,
             valueRange = -75..100,
@@ -47,13 +81,11 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         )
     }
 
-    val colorFilter by screenModel.preferences.colorFilter().collectAsState()
     CheckboxItem(
         label = stringResource(MR.strings.pref_custom_color_filter),
         pref = screenModel.preferences.colorFilter(),
     )
     if (colorFilter) {
-        val colorFilterValue by screenModel.preferences.colorFilterValue().collectAsState()
         SliderItem(
             value = colorFilterValue.red,
             valueRange = 0..255,
@@ -103,7 +135,6 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
             pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
 
-        val colorFilterMode by screenModel.preferences.colorFilterMode().collectAsState()
         SettingsChipRow(MR.strings.pref_color_filter_mode) {
             ColorFilterMode.mapIndexed { index, it ->
                 FilterChip(
@@ -124,13 +155,11 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         pref = screenModel.preferences.invertedColors(),
     )
 
-    val sharpenFilter by screenModel.preferences.sharpenFilter().collectAsState()
     CheckboxItem(
         label = stringResource(MR.strings.pref_sharpen_filter),
         pref = screenModel.preferences.sharpenFilter(),
     )
     if (sharpenFilter) {
-        val sharpenScale by screenModel.preferences.sharpenFilterScale().collectAsState()
         // Convert float (0.0-2.0) to int (0-20) for the slider
         val sliderValue = (sharpenScale * SHARPEN_SCALE_MULTIPLIER).roundToInt()
         SliderItem(

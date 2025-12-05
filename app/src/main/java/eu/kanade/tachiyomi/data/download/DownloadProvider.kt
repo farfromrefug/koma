@@ -251,7 +251,7 @@ class DownloadProvider(
      */
     fun getLocalSourceChapterDirName(
         chapterName: String,
-        chapterNumber: Float,
+        chapterNumber: Double,
         chapterScanlator: String?,
         mangaTitle: String,
         chapterUrl: String,
@@ -260,7 +260,7 @@ class DownloadProvider(
         val sanitizedChapterName = sanitizeChapterName(chapterName)
 
         // Format chapter number (remove trailing zeros)
-        val chapterNumberStr = if (chapterNumber == chapterNumber.toLong().toFloat()) {
+        val chapterNumberStr = if (chapterNumber == chapterNumber) {
             chapterNumber.toLong().toString()
         } else {
             chapterNumber.toString()

@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -65,16 +64,16 @@ fun AdaptiveSheet(
     val scope = rememberCoroutineScope()
     val isEinkMode = LocalEinkMode.current
 
-    // E-ink mode: add border and use white scrim instead of black
+    // E-ink mode: add border and use surface-based scrim instead of dark scrim
     val border = if (isEinkMode) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     } else {
         null
     }
     val scrimColor = if (isEinkMode) {
-        Color.White.copy(alpha = 0.6f)
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
     } else {
-        Color.Black.copy(alpha = 0.32f)
+        MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
     }
 
     if (isTabletUi) {

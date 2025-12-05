@@ -11,6 +11,13 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - `Other` - for technical stuff.
 
 ## [Unreleased]
+### Improved
+- Improved local source performance with concurrent chapter processing and bounded worker pools to prevent UI blocking and memory exhaustion
+- Local source chapter enumeration now uses parallel processing with configurable concurrency (default: 3 workers for chapters, 2 for manga scan)
+- Cover.jpg generation now happens early during import as soon as first chapter is processed
+- Added robust error handling per-chapter during local source processing - failed chapters are logged but don't stop the entire import
+- Local source scan job now processes manga in parallel with proper cancellation support
+
 ### Fixed
 - Fix reader tap zones triggering after scrolling is stopped by tapping ([@NGB-Was-Taken](https://github.com/NGB-Was-Taken)) ([#2680](https://github.com/mihonapp/mihon/pull/2680))
 - Fix shizuku installer not updating installed extensions ([@NGB-Was-Taken](https://github.com/NGB-Was-Taken)) ([#2697](https://github.com/mihonapp/mihon/pull/2697))

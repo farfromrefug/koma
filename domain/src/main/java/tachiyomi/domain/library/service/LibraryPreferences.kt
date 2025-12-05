@@ -210,6 +210,18 @@ class LibraryPreferences(
 
     // Local source settings
     fun autoAddLocalMangaToLibrary() = preferenceStore.getBoolean("auto_add_local_manga_to_library", false)
+    
+    /**
+     * Number of concurrent workers for local source chapter processing.
+     * Lower values use less memory but process slower. Default is 3.
+     */
+    fun localSourceChapterProcessingWorkers() = preferenceStore.getInt("local_source_chapter_workers", 3)
+    
+    /**
+     * Number of concurrent manga to process during local source scan.
+     * Lower values use less memory but scan slower. Default is 2.
+     */
+    fun localSourceMangaProcessingWorkers() = preferenceStore.getInt("local_source_manga_workers", 2)
 
     // endregion
 

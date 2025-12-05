@@ -13,6 +13,12 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import logcat.LogPriority
@@ -21,6 +27,7 @@ import mihon.core.archive.epubReader
 import nl.adaptivity.xmlutil.core.AndroidXmlReader
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.storage.nameWithoutExtension
 import tachiyomi.core.common.util.lang.withIOContext
@@ -255,25 +262,89 @@ actual class LocalSource(
     }
 
     // Chapters
+    /**
+     * Get chapter list with concurrent processing and bounded worker pool.
+     * This method processes chapters in parallel with limited concurrency to prevent
+     * memory issues and UI blocking.
+     *
+     * @param manga The manga to get chapters for
+     * @return List of chapters sorted by name
+     */
     override suspend fun getChapterList(manga: SManga): List<SChapter> = withIOContext {
         val mangaDir = fileSystem.getMangaDirectory(manga.url)
-        val chapters = fileSystem.getFilesInMangaDirectory(manga.url)
+        val mangaDirPath = mangaDir?.displayablePath ?: manga.url
+        
+        logcat(LogPriority.DEBUG) { "Starting chapter enumeration for manga: ${manga.title} at $mangaDirPath" }
+        
+        val chapterFiles = fileSystem.getFilesInMangaDirectory(manga.url)
             // Only keep supported formats
             .filterNot { it.name.orEmpty().startsWith('.') }
             .filter { it.isDirectory || Archive.isSupported(it) || it.extension.equals("epub", true) }
-            .map { chapterFile ->
-                SChapter.create().apply {
-                    url = "${manga.url}/${chapterFile.name}"
-                    name = if (chapterFile.isDirectory) {
-                        chapterFile.name
-                    } else {
-                        chapterFile.nameWithoutExtension
-                    }.orEmpty()
-                    date_upload = chapterFile.lastModified()
-                    chapter_number = ChapterRecognition
-                        .parseChapterNumber(manga.title, this.name, this.chapter_number.toDouble())
-                        .toFloat()
+        
+        logcat(LogPriority.DEBUG) { "Found ${chapterFiles.size} chapter files for ${manga.title}" }
+        
+        if (chapterFiles.isEmpty()) {
+            return@withIOContext emptyList()
+        }
+        
+        // Use bounded worker pool with semaphore for memory-limited processing
+        val semaphore = Semaphore(CHAPTER_PROCESSING_CONCURRENCY)
+        var coverGenerated = false
+        
+        val chapters = coroutineScope {
+            chapterFiles.map { chapterFile ->
+                async {
+                    semaphore.withPermit {
+                        ensureActive()
+                        processChapterFile(manga, mangaDir, chapterFile).also { chapter ->
+                            // Generate cover.jpg early from first successfully processed chapter
+                            if (!coverGenerated && manga.thumbnail_url.isNullOrBlank() && chapter != null) {
+                                try {
+                                    updateCover(chapter, manga)
+                                    coverGenerated = true
+                                    logcat(LogPriority.DEBUG) { "Generated cover.jpg for ${manga.title}" }
+                                } catch (e: Exception) {
+                                    logcat(LogPriority.WARN, e) { "Failed to generate cover for ${manga.title}" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }.awaitAll()
+        }.filterNotNull()
+            .sortedWith { c1, c2 ->
+                c2.name.compareToCaseInsensitiveNaturalOrder(c1.name)
+            }
 
+        logcat(LogPriority.DEBUG) { "Completed processing ${chapters.size} chapters for ${manga.title}" }
+        chapters
+    }
+
+    /**
+     * Process a single chapter file with error handling.
+     * Extracts metadata and generates chapter cover thumbnail.
+     *
+     * @param manga The parent manga
+     * @param mangaDir The manga directory
+     * @param chapterFile The chapter file to process
+     * @return Processed SChapter or null if processing failed
+     */
+    private fun processChapterFile(manga: SManga, mangaDir: UniFile?, chapterFile: UniFile): SChapter? {
+        return try {
+            SChapter.create().apply {
+                url = "${manga.url}/${chapterFile.name}"
+                name = if (chapterFile.isDirectory) {
+                    chapterFile.name
+                } else {
+                    chapterFile.nameWithoutExtension
+                }.orEmpty()
+                date_upload = chapterFile.lastModified()
+                chapter_number = ChapterRecognition
+                    .parseChapterNumber(manga.title, this.name, this.chapter_number.toDouble())
+                    .toFloat()
+
+                // Process metadata with error handling
+                try {
                     val format = Format.valueOf(chapterFile)
                     if (format is Format.Epub) {
                         format.file.epubReader(context).use { epub ->
@@ -284,24 +355,104 @@ actual class LocalSource(
                             setChapterDetailsFromComicInfoFile(stream, this)
                         }
                     }
+                } catch (e: Exception) {
+                    logcat(LogPriority.WARN, e) { "Failed to read metadata for chapter: ${chapterFile.name}" }
+                }
 
-                    // Set chapter cover URL
+                // Set chapter cover URL with error handling
+                try {
                     thumbnail_url = findChapterCover(mangaDir, chapterFile)?.uri?.toString()
                         ?: updateChapterCover(chapterFile, mangaDir)?.uri?.toString()
+                } catch (e: Exception) {
+                    logcat(LogPriority.WARN, e) { "Failed to generate cover for chapter: ${chapterFile.name}" }
                 }
             }
-            .sortedWith { c1, c2 ->
-                c2.name.compareToCaseInsensitiveNaturalOrder(c1.name)
-            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to process chapter file: ${chapterFile.name}" }
+            null
+        }
+    }
 
-        // Copy the cover from the first chapter found if not available
-        if (manga.thumbnail_url.isNullOrBlank()) {
-            chapters.lastOrNull()?.let { chapter ->
-                updateCover(chapter, manga)
+    /**
+     * Get chapter list as a Flow for progressive UI updates.
+     * Emits chapters incrementally as they are processed, allowing the UI to show
+     * immediate feedback with filenames, then update with metadata as processing completes.
+     *
+     * @param manga The manga to get chapters for
+     * @return Flow emitting ChapterLoadState updates
+     */
+    fun getChapterListFlow(manga: SManga): Flow<ChapterLoadState> = flow {
+        val mangaDir = fileSystem.getMangaDirectory(manga.url)
+        val mangaDirPath = mangaDir?.displayablePath ?: manga.url
+        
+        logcat(LogPriority.DEBUG) { "Starting progressive chapter loading for: ${manga.title} at $mangaDirPath" }
+
+        val chapterFiles = withIOContext {
+            fileSystem.getFilesInMangaDirectory(manga.url)
+                .filterNot { it.name.orEmpty().startsWith('.') }
+                .filter { it.isDirectory || Archive.isSupported(it) || it.extension.equals("epub", true) }
+        }
+
+        if (chapterFiles.isEmpty()) {
+            emit(ChapterLoadState.Complete(emptyList()))
+            return@flow
+        }
+
+        // Phase 1: Emit placeholder chapters immediately with just filenames
+        val placeholders = chapterFiles.map { chapterFile ->
+            SChapter.create().apply {
+                url = "${manga.url}/${chapterFile.name}"
+                name = if (chapterFile.isDirectory) {
+                    chapterFile.name
+                } else {
+                    chapterFile.nameWithoutExtension
+                }.orEmpty()
+                date_upload = chapterFile.lastModified()
+                chapter_number = ChapterRecognition
+                    .parseChapterNumber(manga.title, this.name, this.chapter_number.toDouble())
+                    .toFloat()
+            }
+        }.sortedWith { c1, c2 ->
+            c2.name.compareToCaseInsensitiveNaturalOrder(c1.name)
+        }
+
+        emit(ChapterLoadState.Enumerated(placeholders, chapterFiles.size))
+
+        // Phase 2: Process chapters with bounded concurrency and emit updates
+        val semaphore = Semaphore(CHAPTER_PROCESSING_CONCURRENCY)
+        val processedChapters = mutableListOf<SChapter>()
+        var coverGenerated = false
+
+        withIOContext {
+            coroutineScope {
+                chapterFiles.mapIndexed { index, chapterFile ->
+                    async {
+                        semaphore.withPermit {
+                            ensureActive()
+                            processChapterFile(manga, mangaDir, chapterFile)?.also { chapter ->
+                                synchronized(processedChapters) {
+                                    processedChapters.add(chapter)
+                                }
+                                
+                                // Generate cover.jpg early
+                                if (!coverGenerated && manga.thumbnail_url.isNullOrBlank()) {
+                                    try {
+                                        updateCover(chapter, manga)
+                                        coverGenerated = true
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        }
+                    }
+                }.awaitAll()
             }
         }
 
-        chapters
+        val sortedChapters = processedChapters.sortedWith { c1, c2 ->
+            c2.name.compareToCaseInsensitiveNaturalOrder(c1.name)
+        }
+
+        emit(ChapterLoadState.Complete(sortedChapters))
     }
 
     // Filters
@@ -454,7 +605,41 @@ actual class LocalSource(
         const val HELP_URL = "https://mihon.app/docs/guides/local-source/"
 
         private val LATEST_THRESHOLD = 7.days.inWholeMilliseconds
+        
+        /**
+         * Maximum number of concurrent chapter processing tasks.
+         * This bounds memory usage when processing large manga with many chapters.
+         * Each worker may open an archive file for metadata/cover extraction.
+         */
+        const val CHAPTER_PROCESSING_CONCURRENCY = 3
     }
+}
+
+/**
+ * Represents the state of progressive chapter loading.
+ * Used by [LocalSource.getChapterListFlow] to provide incremental UI updates.
+ */
+sealed class ChapterLoadState {
+    /**
+     * Initial enumeration complete - chapters identified but not fully processed.
+     * Contains placeholder chapters with just filenames and estimated chapter numbers.
+     *
+     * @param chapters List of placeholder chapters with basic info (filename, date)
+     * @param totalCount Total number of chapters to be processed
+     */
+    data class Enumerated(
+        val chapters: List<SChapter>,
+        val totalCount: Int,
+    ) : ChapterLoadState()
+
+    /**
+     * All chapters have been fully processed with metadata and covers.
+     *
+     * @param chapters Complete list of processed chapters
+     */
+    data class Complete(
+        val chapters: List<SChapter>,
+    ) : ChapterLoadState()
 }
 
 fun Manga.isLocal(): Boolean = source == LocalSource.ID

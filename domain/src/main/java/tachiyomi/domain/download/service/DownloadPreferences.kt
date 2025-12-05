@@ -43,7 +43,27 @@ class DownloadPreferences(
 
     fun downloadToLocalSource() = preferenceStore.getBoolean("download_to_local_source", false)
 
+    fun localSourceMangaFolderTemplate() = preferenceStore.getString(
+        "local_source_manga_folder_template",
+        DEFAULT_MANGA_FOLDER_TEMPLATE,
+    )
+
+    fun localSourceChapterFolderTemplate() = preferenceStore.getString(
+        "local_source_chapter_folder_template",
+        DEFAULT_CHAPTER_FOLDER_TEMPLATE,
+    )
+
     companion object {
+        // Template placeholders for manga folder naming
+        const val MANGA_TITLE_PLACEHOLDER = "{manga_title}"
+
+        // Template placeholders for chapter folder naming
+        const val CHAPTER_NAME_PLACEHOLDER = "{chapter_name}"
+        const val CHAPTER_NUMBER_PLACEHOLDER = "{chapter_number}"
+        const val CHAPTER_SCANLATOR_PLACEHOLDER = "{scanlator}"
+
+        const val DEFAULT_MANGA_FOLDER_TEMPLATE = MANGA_TITLE_PLACEHOLDER
+        const val DEFAULT_CHAPTER_FOLDER_TEMPLATE = CHAPTER_NAME_PLACEHOLDER
         private const val REMOVE_EXCLUDE_CATEGORIES_PREF_KEY = "remove_exclude_categories"
         private const val DOWNLOAD_NEW_CATEGORIES_PREF_KEY = "download_new_categories"
         private const val DOWNLOAD_NEW_CATEGORIES_EXCLUDE_PREF_KEY = "download_new_categories_exclude"

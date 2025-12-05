@@ -59,7 +59,8 @@ class DownloadProvider(
                 )
             }
 
-            val mangaDirName = getMangaDirName(mangaTitle)
+            // Use template for local source manga folder name
+            val mangaDirName = getLocalSourceMangaDirName(mangaTitle)
             val mangaDir = localDir.createDirectory(mangaDirName)
             if (mangaDir == null) {
                 val displayablePath = localDir.displayablePath + "/$mangaDirName"
@@ -203,6 +204,20 @@ class DownloadProvider(
     }
 
     /**
+     * Returns the download directory name for a manga using the local source template.
+     *
+     * @param mangaTitle the title of the manga to query.
+     */
+    fun getLocalSourceMangaDirName(mangaTitle: String): String {
+        val template = downloadPreferences.localSourceMangaFolderTemplate().get()
+        val name = template.replace(DownloadPreferences.MANGA_TITLE_PLACEHOLDER, mangaTitle)
+        return DiskUtil.buildValidFilename(
+            name,
+            disallowNonAscii = libraryPreferences.disallowNonAsciiFilenames().get(),
+        )
+    }
+
+    /**
      * Returns the chapter directory name for a chapter.
      *
      * @param chapterName the name of the chapter to query.
@@ -221,6 +236,54 @@ class DownloadProvider(
         }
         // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
         dirName = DiskUtil.buildValidFilename(dirName, DiskUtil.MAX_FILE_NAME_BYTES - 11, disallowNonAsciiFilenames)
+        dirName += "_" + md5(chapterUrl).take(6)
+        return dirName
+    }
+
+    /**
+     * Returns the chapter directory name for a chapter using the local source template.
+     *
+     * @param chapterName the name of the chapter to query.
+     * @param chapterNumber the chapter number.
+     * @param chapterScanlator scanlator of the chapter to query.
+     * @param mangaTitle the title of the manga.
+     * @param chapterUrl url of the chapter to query.
+     */
+    fun getLocalSourceChapterDirName(
+        chapterName: String,
+        chapterNumber: Float,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        chapterUrl: String,
+    ): String {
+        val template = downloadPreferences.localSourceChapterFolderTemplate().get()
+        val sanitizedChapterName = sanitizeChapterName(chapterName)
+
+        // Format chapter number (remove trailing zeros)
+        val chapterNumberStr = if (chapterNumber == chapterNumber.toLong().toFloat()) {
+            chapterNumber.toLong().toString()
+        } else {
+            chapterNumber.toString()
+        }
+
+        var dirName = template
+            .replace(DownloadPreferences.CHAPTER_NAME_PLACEHOLDER, sanitizedChapterName)
+            .replace(DownloadPreferences.CHAPTER_NUMBER_PLACEHOLDER, chapterNumberStr)
+            .replace(DownloadPreferences.CHAPTER_SCANLATOR_PLACEHOLDER, chapterScanlator ?: "")
+            .replace(DownloadPreferences.MANGA_TITLE_PLACEHOLDER, mangaTitle)
+            .trim()
+
+        // If template result is empty, fall back to chapter name
+        if (dirName.isBlank()) {
+            dirName = sanitizedChapterName
+        }
+
+        // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
+        dirName = DiskUtil.buildValidFilename(
+            dirName,
+            DiskUtil.MAX_FILE_NAME_BYTES - 11,
+            libraryPreferences.disallowNonAsciiFilenames().get(),
+        )
         dirName += "_" + md5(chapterUrl).take(6)
         return dirName
     }

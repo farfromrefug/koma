@@ -339,11 +339,22 @@ class Downloader(
             return
         }
 
-        val chapterDirname = provider.getChapterDirName(
-            download.chapter.name,
-            download.chapter.scanlator,
-            download.chapter.url,
-        )
+        // Use local source template if downloading to local source
+        val chapterDirname = if (downloadPreferences.downloadToLocalSource().get()) {
+            provider.getLocalSourceChapterDirName(
+                download.chapter.name,
+                download.chapter.chapterNumber,
+                download.chapter.scanlator,
+                download.manga.title,
+                download.chapter.url,
+            )
+        } else {
+            provider.getChapterDirName(
+                download.chapter.name,
+                download.chapter.scanlator,
+                download.chapter.url,
+            )
+        }
         val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
 
         try {

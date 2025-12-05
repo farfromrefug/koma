@@ -226,6 +226,8 @@ object SettingsDownloadScreen : SearchableSettings {
         libraryPreferences: LibraryPreferences,
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
+        val downloadToLocalSource by downloadPreferences.downloadToLocalSource().collectAsState()
+
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.local_source),
             preferenceItems = persistentListOf(
@@ -233,6 +235,18 @@ object SettingsDownloadScreen : SearchableSettings {
                     preference = downloadPreferences.downloadToLocalSource(),
                     title = stringResource(MR.strings.pref_download_to_local_source),
                     subtitle = stringResource(MR.strings.pref_download_to_local_source_summary),
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = downloadPreferences.localSourceMangaFolderTemplate(),
+                    title = stringResource(MR.strings.pref_local_source_manga_folder_template),
+                    subtitle = stringResource(MR.strings.pref_local_source_manga_folder_template_summary),
+                    enabled = downloadToLocalSource,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = downloadPreferences.localSourceChapterFolderTemplate(),
+                    title = stringResource(MR.strings.pref_local_source_chapter_folder_template),
+                    subtitle = stringResource(MR.strings.pref_local_source_chapter_folder_template_summary),
+                    enabled = downloadToLocalSource,
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = libraryPreferences.autoAddLocalMangaToLibrary(),

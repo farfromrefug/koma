@@ -58,6 +58,7 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.MR
+import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
@@ -423,7 +424,14 @@ class Downloader(
             } else {
                 tmpDir.renameTo(chapterDirname)
             }
-            cache.addChapter(chapterDirname, mangaDir, download.manga)
+
+            // Add chapter to cache - use LocalSource.ID when downloading to local source
+            val sourceIdForCache = if (downloadPreferences.downloadToLocalSource().get()) {
+                LocalSource.ID
+            } else {
+                download.manga.source
+            }
+            cache.addChapter(chapterDirname, mangaDir, download.manga, sourceIdForCache)
 
             DiskUtil.createNoMediaFile(tmpDir, context)
 

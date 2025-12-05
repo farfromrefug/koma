@@ -243,18 +243,39 @@ class DownloadCache(
      * @param manga the manga of the chapter.
      */
     suspend fun addChapter(chapterDirName: String, mangaUniFile: UniFile, manga: Manga) {
+        addChapter(chapterDirName, mangaUniFile, manga, manga.source)
+    }
+
+    /**
+     * Adds a chapter that has just been downloaded to this cache.
+     * Use this overload when downloading to a different source directory (e.g., local source).
+     *
+     * @param chapterDirName the downloaded chapter's directory name.
+     * @param mangaUniFile the directory of the manga.
+     * @param manga the manga of the chapter.
+     * @param sourceId the source ID to add the chapter under.
+     */
+    suspend fun addChapter(chapterDirName: String, mangaUniFile: UniFile, manga: Manga, sourceId: Long) {
         rootDownloadsDirMutex.withLock {
             // Retrieve the cached source directory or cache a new one
-            var sourceDir = rootDownloadsDir.sourceDirs[manga.source]
+            var sourceDir = rootDownloadsDir.sourceDirs[sourceId]
             if (sourceDir == null) {
-                val source = sourceManager.get(manga.source) ?: return
-                val sourceUniFile = provider.findSourceDir(source) ?: return
+                val source = sourceManager.get(sourceId) ?: return
+                val sourceUniFile = if (sourceId == LocalSource.ID) {
+                    storageManager.getLocalSourceDirectory()
+                } else {
+                    provider.findSourceDir(source)
+                } ?: return
                 sourceDir = SourceDirectory(sourceUniFile)
-                rootDownloadsDir.sourceDirs += manga.source to sourceDir
+                rootDownloadsDir.sourceDirs += sourceId to sourceDir
             }
 
             // Retrieve the cached manga directory or cache a new one
-            val mangaDirName = provider.getMangaDirName(manga.title)
+            val mangaDirName = if (sourceId == LocalSource.ID) {
+                provider.getLocalSourceMangaDirName(manga.title)
+            } else {
+                provider.getMangaDirName(manga.title)
+            }
             var mangaDir = sourceDir.mangaDirs[mangaDirName]
             if (mangaDir == null) {
                 mangaDir = MangaDirectory(mangaUniFile)
@@ -405,13 +426,22 @@ class DownloadCache(
             rootDownloadsDirMutex.withLock {
                 val updatedRootDir = RootDirectory(storageManager.getDownloadsDirectory())
 
-                updatedRootDir.sourceDirs = updatedRootDir.dir?.listFiles().orEmpty()
+                val sourceDirs = updatedRootDir.dir?.listFiles().orEmpty()
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
                     .mapNotNull { dir ->
                         val sourceId = sourceMap[dir.name!!.lowercase()]
                         sourceId?.let { it to SourceDirectory(dir) }
                     }
-                    .toMap()
+                    .toMutableList()
+
+                // Also add the local source directory if it exists and isn't already included
+                // This allows remote source browsing to see chapters downloaded to local source
+                val localSourceDir = storageManager.getLocalSourceDirectory()
+                if (localSourceDir != null && sourceDirs.none { it.first == LocalSource.ID }) {
+                    sourceDirs.add(LocalSource.ID to SourceDirectory(localSourceDir))
+                }
+
+                updatedRootDir.sourceDirs = sourceDirs.toMap()
 
                 updatedRootDir.sourceDirs.values.map { sourceDir ->
                     async {

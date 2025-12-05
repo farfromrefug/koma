@@ -34,7 +34,6 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Job that handles preparing local manga metadata when they are added to favorites.
@@ -164,8 +163,8 @@ class LocalMangaImportJob(private val context: Context, workerParams: WorkerPara
         private const val WORK_NAME = "LocalMangaImport"
         private const val KEY_MANGA_ID = "manga_id"
 
-        // Shared queue for pending manga imports
-        private val pendingMangaIds = CopyOnWriteArrayList<Long>()
+        // Shared queue for pending manga imports (protected by queueMutex)
+        private val pendingMangaIds = mutableListOf<Long>()
         private val queueMutex = Mutex()
 
         /**
@@ -193,13 +192,6 @@ class LocalMangaImportJob(private val context: Context, workerParams: WorkerPara
             return context.workManager.isRunning(TAG)
         }
 
-        /**
-         * Returns the number of pending manga in the queue.
-         */
-        fun getPendingCount(): Int {
-            return pendingMangaIds.size
-        }
-
         fun stop(context: Context) {
             val wm = context.workManager
             val workQuery = WorkQuery.Builder.fromTags(listOf(TAG))
@@ -209,7 +201,8 @@ class LocalMangaImportJob(private val context: Context, workerParams: WorkerPara
                 .forEach {
                     wm.cancelWorkById(it.id)
                 }
-            pendingMangaIds.clear()
+            // Note: We don't clear pendingMangaIds here since it would require
+            // coroutine context for mutex. The job will clear it when it processes.
         }
     }
 }

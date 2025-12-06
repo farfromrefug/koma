@@ -1018,15 +1018,14 @@ class ReaderActivity : BaseActivity() {
         }
 
         /**
-         * Sets the sharpen render effect on the viewer container.
-         * Only available on API 33+ (Android 13+) which supports RuntimeShader.
-         * Uses AGSL (Android Graphics Shading Language) for true image sharpening
-         * via unsharp mask technique.
+         * Sets the sharpen effect on the viewer container.
+         * - API 33+ (Android 13+): Uses RuntimeShader for true image sharpening via unsharp mask
+         * - API 31-32 (Android 12-12L): Falls back to contrast enhancement via ColorMatrix
          * 
          * @param enabled Whether the sharpen filter is enabled
          * @param scale The sharpen intensity (0.0 to 2.0, validated by preferences slider)
          */
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        @RequiresApi(Build.VERSION_CODES.S)
         private fun setSharpenEffect(enabled: Boolean, scale: Float) {
             // Disable effect when not enabled or scale is 0 (no sharpening)
             if (!enabled || scale == 0f) {
@@ -1035,12 +1034,26 @@ class ReaderActivity : BaseActivity() {
             }
 
             try {
-                // AGSL (Android Graphics Shading Language) sharpen shader
-                // Uses a simple unsharp mask technique: output = original + scale * (original - blurred)
-                val sharpenShader = RuntimeShader(SHARPEN_SHADER)
-                sharpenShader.setFloatUniform("scale", scale)
-
-                val effect = RenderEffect.createRuntimeShaderEffect(sharpenShader, SHADER_INPUT_NAME)
+                val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    // API 33+: True image sharpening using AGSL RuntimeShader
+                    val sharpenShader = RuntimeShader(SHARPEN_SHADER)
+                    sharpenShader.setFloatUniform("scale", scale)
+                    RenderEffect.createRuntimeShaderEffect(sharpenShader, SHADER_INPUT_NAME)
+                } else {
+                    // API 31-32: Fallback to contrast enhancement which creates a perception of sharpness
+                    // Scale 0.0-2.0 maps to contrast multiplier 1.0-1.6
+                    val contrastFactor = 1f + (scale * 0.3f)
+                    val translate = (-0.5f * contrastFactor + 0.5f) * 255f
+                    val contrastMatrix = ColorMatrix(
+                        floatArrayOf(
+                            contrastFactor, 0f, 0f, 0f, translate,
+                            0f, contrastFactor, 0f, 0f, translate,
+                            0f, 0f, contrastFactor, 0f, translate,
+                            0f, 0f, 0f, 1f, 0f,
+                        )
+                    )
+                    RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(contrastMatrix))
+                }
                 binding.viewerContainer.setRenderEffect(effect)
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Failed to apply sharpen effect" }

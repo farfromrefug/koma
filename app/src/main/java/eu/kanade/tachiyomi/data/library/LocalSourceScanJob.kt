@@ -26,7 +26,12 @@ import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
@@ -108,11 +113,18 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
     private suspend fun scanLocalSource(scope: CoroutineScope) {
         val localSource = sourceManager.get(LocalSource.ID) as? LocalSource ?: return
 
+        logcat(LogPriority.DEBUG) { "Starting local source scan" }
+
         // Get all manga from local source
         val localMangaPage = localSource.getPopularManga(1)
         val localMangas = localMangaPage.mangas
 
-        if (localMangas.isEmpty()) return
+        if (localMangas.isEmpty()) {
+            logcat(LogPriority.DEBUG) { "No local manga found" }
+            return
+        }
+
+        logcat(LogPriority.INFO) { "Found ${localMangas.size} local manga to process" }
 
         val progressCount = AtomicInt(0)
         val totalCount = localMangas.size
@@ -129,53 +141,68 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
             null
         }
 
-        for (sManga in localMangas) {
-            scope.ensureActive()
+        // Use semaphore to limit concurrent manga processing
+        val concurrency = libraryPreferences.localSourceMangaProcessingWorkers().get()
+            .coerceIn(1, MAX_MANGA_PROCESSING_CONCURRENCY)
+        val semaphore = Semaphore(concurrency)
 
-            // Show progress notification
-            notifier.showChapterProgressNotification(
-                null,
-                progressCount.load(),
-                totalCount,
-            )
+        coroutineScope {
+            localMangas.map { sManga ->
+                async {
+                    semaphore.withPermit {
+                        scope.ensureActive()
 
-            try {
-                // Check if manga already exists in database
-                val existingManga = getMangaByUrlAndSourceId.await(sManga.url, LocalSource.ID)
+                        // Show progress notification
+                        notifier.showChapterProgressNotification(
+                            null,
+                            progressCount.load(),
+                            totalCount,
+                        )
 
-                if (existingManga != null) {
-                    // Manga exists, check if it's in library
-                    if (!existingManga.favorite) {
-                        // Add to library
-                        addMangaToLibrary(existingManga, defaultCategory?.id)
+                        try {
+                            logcat(LogPriority.DEBUG) { "Processing manga: ${sManga.title}" }
+                            
+                            // Check if manga already exists in database
+                            val existingManga = getMangaByUrlAndSourceId.await(sManga.url, LocalSource.ID)
+
+                            if (existingManga != null) {
+                                // Manga exists, check if it's in library
+                                if (!existingManga.favorite) {
+                                    // Add to library
+                                    addMangaToLibrary(existingManga, defaultCategory?.id)
+                                }
+
+                                // Update metadata
+                                updateMangaMetadata(existingManga, localSource)
+                            } else {
+                                // New manga - add to database and library
+                                val manga = Manga.create().copy(
+                                    url = sManga.url,
+                                    title = sManga.title,
+                                    source = LocalSource.ID,
+                                    favorite = true,
+                                    thumbnailUrl = sManga.thumbnail_url,
+                                )
+                                val newManga = networkToLocalManga(manga)
+
+                                // Set category
+                                if (defaultCategory != null) {
+                                    setMangaCategories.await(newManga.id, listOf(defaultCategory.id))
+                                }
+
+                                // Fetch full metadata
+                                updateMangaMetadata(newManga, localSource)
+                            }
+                            
+                            logcat(LogPriority.DEBUG) { "Completed processing: ${sManga.title}" }
+                        } catch (e: Exception) {
+                            logcat(LogPriority.ERROR, e) { "Failed to process local manga: ${sManga.title}" }
+                        }
+
+                        progressCount.incrementAndFetch()
                     }
-
-                    // Update metadata
-                    updateMangaMetadata(existingManga, localSource)
-                } else {
-                    // New manga - add to database and library
-                    val manga = Manga.create().copy(
-                        url = sManga.url,
-                        title = sManga.title,
-                        source = LocalSource.ID,
-                        favorite = true,
-                        thumbnailUrl = sManga.thumbnail_url,
-                    )
-                    val newManga = networkToLocalManga(manga)
-
-                    // Set category
-                    if (defaultCategory != null) {
-                        setMangaCategories.await(newManga.id, listOf(defaultCategory.id))
-                    }
-
-                    // Fetch full metadata
-                    updateMangaMetadata(newManga, localSource)
                 }
-            } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to process local manga: ${sManga.title}" }
-            }
-
-            progressCount.incrementAndFetch()
+            }.awaitAll()
         }
 
         notifier.showChapterProgressNotification(null, totalCount, totalCount)
@@ -215,6 +242,18 @@ class LocalSourceScanJob(private val context: Context, workerParams: WorkerParam
 
         // Scan interval in hours
         private const val SCAN_INTERVAL_HOURS = 6L
+        
+        /**
+         * Maximum number of manga to process concurrently during scan.
+         * This bounds memory usage when scanning folders with many manga.
+         * The actual value is configurable via [LibraryPreferences.localSourceMangaProcessingWorkers].
+         */
+        private const val MAX_MANGA_PROCESSING_CONCURRENCY = 5
+
+        /**
+         * Default number of manga to process concurrently.
+         */
+        private const val DEFAULT_MANGA_PROCESSING_CONCURRENCY = 2
 
         fun cancelAllWorks(context: Context) {
             context.workManager.cancelAllWorkByTag(TAG)

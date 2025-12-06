@@ -42,6 +42,7 @@ object SettingsAppearanceScreen : SearchableSettings {
             getThemeGroup(uiPreferences = uiPreferences),
             getDisplayGroup(uiPreferences = uiPreferences),
             getFeatureTogglesGroup(uiPreferences = uiPreferences),
+            getEinkGroup(uiPreferences = uiPreferences),
         )
     }
 
@@ -193,6 +194,22 @@ object SettingsAppearanceScreen : SearchableSettings {
                         context.toast(MR.strings.requires_app_restart)
                         true
                     },
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getEinkGroup(
+        uiPreferences: UiPreferences,
+    ): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.eink_header),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = uiPreferences.pagedModeEnabled(),
+                    title = stringResource(MR.strings.pref_paged_mode),
+                    subtitle = stringResource(MR.strings.pref_paged_mode_summary),
                 ),
             ),
         )

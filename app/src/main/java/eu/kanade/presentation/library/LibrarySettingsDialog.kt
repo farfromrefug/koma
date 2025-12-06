@@ -296,10 +296,4 @@ private fun ColumnScope.DisplayPage(
         label = stringResource(MR.strings.action_display_show_number_of_items),
         pref = screenModel.libraryPreferences.categoryNumberOfItems(),
     )
-
-    HeadingItem(MR.strings.eink_header)
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_paged_mode),
-        pref = screenModel.libraryPreferences.pagedModeEnabled(),
-    )
 }

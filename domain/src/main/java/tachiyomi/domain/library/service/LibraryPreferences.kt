@@ -33,9 +33,6 @@ class LibraryPreferences(
 
     fun landscapeColumns() = preferenceStore.getInt("pref_library_columns_landscape_key", 0)
 
-    // Paged mode for e-ink devices - displays content page by page instead of scrolling
-    fun pagedModeEnabled() = preferenceStore.getBoolean("pref_paged_mode_enabled", false)
-
     fun lastUpdatedTimestamp() = preferenceStore.getLong(Preference.appStateKey("library_update_last_timestamp"), 0L)
     fun autoUpdateInterval() = preferenceStore.getInt("pref_library_update_interval_key", 0)
 

@@ -1,9 +1,12 @@
 package eu.kanade.presentation.library.components
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,20 +16,23 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.ui.library.LibraryItem
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.presentation.core.components.PageIndicator
-import tachiyomi.presentation.core.util.plus
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -47,6 +53,9 @@ private val COMFORTABLE_GRID_TITLE_HEIGHT = 40.dp
 // Default adaptive grid cell size
 private val ADAPTIVE_GRID_CELL_SIZE = 128.dp
 
+// Minimum swipe distance to trigger page change
+private const val SWIPE_THRESHOLD = 100f
+
 @Composable
 internal fun PagedLibraryCompactGrid(
     items: List<LibraryItem>,
@@ -61,10 +70,11 @@ internal fun PagedLibraryCompactGrid(
     onGlobalSearchClicked: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     var containerHeight by remember { mutableIntStateOf(0) }
-    
+
     val actualColumns = if (columns <= 0) 3 else columns
-    
+
     val itemsPerPage by remember(containerHeight, actualColumns) {
         derivedStateOf {
             if (containerHeight <= 0) {
@@ -80,17 +90,17 @@ internal fun PagedLibraryCompactGrid(
             }
         }
     }
-    
+
     val totalPages by remember(items.size, itemsPerPage) {
         derivedStateOf { max(1, ceil(items.size.toDouble() / itemsPerPage).toInt()) }
     }
-    
+
     var currentPage by rememberSaveable { mutableIntStateOf(1) }
     val validCurrentPage = currentPage.coerceIn(1, totalPages)
     if (validCurrentPage != currentPage) {
         currentPage = validCurrentPage
     }
-    
+
     val startIndex = (currentPage - 1) * itemsPerPage
     val endIndex = minOf(startIndex + itemsPerPage, items.size)
     val pageItems = if (items.isNotEmpty() && startIndex < items.size) {
@@ -98,11 +108,32 @@ internal fun PagedLibraryCompactGrid(
     } else {
         emptyList()
     }
-    
+
+    // Track horizontal swipe for page navigation
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerHeight = it.height },
+            .onSizeChanged { containerHeight = it.height }
+            .pointerInput(totalPages, currentPage) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(swipeOffset) > SWIPE_THRESHOLD) {
+                            if (swipeOffset > 0 && currentPage > 1) {
+                                currentPage--
+                            } else if (swipeOffset < 0 && currentPage < totalPages) {
+                                currentPage++
+                            }
+                        }
+                        swipeOffset = 0f
+                    },
+                    onDragCancel = { swipeOffset = 0f },
+                    onHorizontalDrag = { _, dragAmount ->
+                        swipeOffset += dragAmount
+                    },
+                )
+            },
     ) {
         Box(
             modifier = Modifier
@@ -112,7 +143,12 @@ internal fun PagedLibraryCompactGrid(
             LazyVerticalGrid(
                 columns = if (actualColumns == 0) GridCells.Adaptive(ADAPTIVE_GRID_CELL_SIZE) else GridCells.Fixed(actualColumns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = contentPadding + PaddingValues(8.dp),
+                contentPadding = PaddingValues(
+                    start = contentPadding.calculateStartPadding(layoutDirection) + 8.dp,
+                    end = contentPadding.calculateEndPadding(layoutDirection) + 8.dp,
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    bottom = 8.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
                 horizontalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridHorizontalSpacer),
                 userScrollEnabled = false,
@@ -125,7 +161,7 @@ internal fun PagedLibraryCompactGrid(
                         )
                     }
                 }
-                
+
                 items(
                     items = pageItems,
                     key = { it.libraryManga.manga.id },
@@ -163,7 +199,7 @@ internal fun PagedLibraryCompactGrid(
                 }
             }
         }
-        
+
         if (totalPages > 1) {
             Box(
                 modifier = Modifier
@@ -195,10 +231,11 @@ internal fun PagedLibraryComfortableGrid(
     onGlobalSearchClicked: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     var containerHeight by remember { mutableIntStateOf(0) }
-    
+
     val actualColumns = if (columns <= 0) 3 else columns
-    
+
     val itemsPerPage by remember(containerHeight, actualColumns) {
         derivedStateOf {
             if (containerHeight <= 0) {
@@ -215,17 +252,17 @@ internal fun PagedLibraryComfortableGrid(
             }
         }
     }
-    
+
     val totalPages by remember(items.size, itemsPerPage) {
         derivedStateOf { max(1, ceil(items.size.toDouble() / itemsPerPage).toInt()) }
     }
-    
+
     var currentPage by rememberSaveable { mutableIntStateOf(1) }
     val validCurrentPage = currentPage.coerceIn(1, totalPages)
     if (validCurrentPage != currentPage) {
         currentPage = validCurrentPage
     }
-    
+
     val startIndex = (currentPage - 1) * itemsPerPage
     val endIndex = minOf(startIndex + itemsPerPage, items.size)
     val pageItems = if (items.isNotEmpty() && startIndex < items.size) {
@@ -233,11 +270,32 @@ internal fun PagedLibraryComfortableGrid(
     } else {
         emptyList()
     }
-    
+
+    // Track horizontal swipe for page navigation
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerHeight = it.height },
+            .onSizeChanged { containerHeight = it.height }
+            .pointerInput(totalPages, currentPage) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(swipeOffset) > SWIPE_THRESHOLD) {
+                            if (swipeOffset > 0 && currentPage > 1) {
+                                currentPage--
+                            } else if (swipeOffset < 0 && currentPage < totalPages) {
+                                currentPage++
+                            }
+                        }
+                        swipeOffset = 0f
+                    },
+                    onDragCancel = { swipeOffset = 0f },
+                    onHorizontalDrag = { _, dragAmount ->
+                        swipeOffset += dragAmount
+                    },
+                )
+            },
     ) {
         Box(
             modifier = Modifier
@@ -247,7 +305,12 @@ internal fun PagedLibraryComfortableGrid(
             LazyVerticalGrid(
                 columns = if (actualColumns == 0) GridCells.Adaptive(ADAPTIVE_GRID_CELL_SIZE) else GridCells.Fixed(actualColumns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = contentPadding + PaddingValues(8.dp),
+                contentPadding = PaddingValues(
+                    start = contentPadding.calculateStartPadding(layoutDirection) + 8.dp,
+                    end = contentPadding.calculateEndPadding(layoutDirection) + 8.dp,
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    bottom = 8.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
                 horizontalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridHorizontalSpacer),
                 userScrollEnabled = false,
@@ -260,7 +323,7 @@ internal fun PagedLibraryComfortableGrid(
                         )
                     }
                 }
-                
+
                 items(
                     items = pageItems,
                     key = { it.libraryManga.manga.id },
@@ -298,7 +361,7 @@ internal fun PagedLibraryComfortableGrid(
                 }
             }
         }
-        
+
         if (totalPages > 1) {
             Box(
                 modifier = Modifier
@@ -329,8 +392,9 @@ internal fun PagedLibraryList(
     onGlobalSearchClicked: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     var containerHeight by remember { mutableIntStateOf(0) }
-    
+
     val itemsPerPage by remember(containerHeight) {
         derivedStateOf {
             if (containerHeight <= 0) {
@@ -344,17 +408,17 @@ internal fun PagedLibraryList(
             }
         }
     }
-    
+
     val totalPages by remember(items.size, itemsPerPage) {
         derivedStateOf { max(1, ceil(items.size.toDouble() / itemsPerPage).toInt()) }
     }
-    
+
     var currentPage by rememberSaveable { mutableIntStateOf(1) }
     val validCurrentPage = currentPage.coerceIn(1, totalPages)
     if (validCurrentPage != currentPage) {
         currentPage = validCurrentPage
     }
-    
+
     val startIndex = (currentPage - 1) * itemsPerPage
     val endIndex = minOf(startIndex + itemsPerPage, items.size)
     val pageItems = if (items.isNotEmpty() && startIndex < items.size) {
@@ -362,17 +426,43 @@ internal fun PagedLibraryList(
     } else {
         emptyList()
     }
-    
+
+    // Track horizontal swipe for page navigation
+    var swipeOffset by remember { mutableFloatStateOf(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerHeight = it.height },
+            .onSizeChanged { containerHeight = it.height }
+            .pointerInput(totalPages, currentPage) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(swipeOffset) > SWIPE_THRESHOLD) {
+                            if (swipeOffset > 0 && currentPage > 1) {
+                                currentPage--
+                            } else if (swipeOffset < 0 && currentPage < totalPages) {
+                                currentPage++
+                            }
+                        }
+                        swipeOffset = 0f
+                    },
+                    onDragCancel = { swipeOffset = 0f },
+                    onHorizontalDrag = { _, dragAmount ->
+                        swipeOffset += dragAmount
+                    },
+                )
+            },
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(contentPadding + PaddingValues(vertical = 8.dp)),
+                .padding(
+                    start = contentPadding.calculateStartPadding(layoutDirection),
+                    end = contentPadding.calculateEndPadding(layoutDirection),
+                    top = contentPadding.calculateTopPadding() + 8.dp,
+                    bottom = 8.dp,
+                ),
         ) {
             if (!searchQuery.isNullOrEmpty() && currentPage == 1) {
                 GlobalSearchItem(
@@ -381,7 +471,7 @@ internal fun PagedLibraryList(
                     onClick = onGlobalSearchClicked,
                 )
             }
-            
+
             pageItems.forEach { libraryItem ->
                 val manga = libraryItem.libraryManga.manga
                 MangaListItem(
@@ -412,7 +502,7 @@ internal fun PagedLibraryList(
                 )
             }
         }
-        
+
         if (totalPages > 1) {
             Box(
                 modifier = Modifier

@@ -40,21 +40,24 @@ import kotlin.math.max
 private const val ITEMS_PER_PAGE_DEFAULT = 12
 private const val LIST_ITEMS_PER_PAGE_DEFAULT = 8
 
-// Item height estimates for calculating items per page
-private val ITEM_HEIGHT_GRID = 200.dp
-private val ITEM_HEIGHT_LIST = 60.dp
+// Item height estimates for calculating items per page (conservative estimates to prevent overflow)
+private val ITEM_HEIGHT_GRID = 220.dp
+private val ITEM_HEIGHT_LIST = 70.dp
 
 // Page indicator height - must be consistent across all paged components
 private val PAGE_INDICATOR_HEIGHT = 60.dp
 
 // Additional height for comfortable grid items (title below cover)
-private val COMFORTABLE_GRID_TITLE_HEIGHT = 40.dp
+private val COMFORTABLE_GRID_TITLE_HEIGHT = 44.dp
 
 // Default adaptive grid cell size
 private val ADAPTIVE_GRID_CELL_SIZE = 128.dp
 
 // Minimum swipe distance to trigger page change
 private const val SWIPE_THRESHOLD = 100f
+
+// Safety margin to prevent items from being cut off
+private val SAFETY_MARGIN = 16.dp
 
 @Composable
 internal fun PagedLibraryCompactGrid(
@@ -82,7 +85,7 @@ internal fun PagedLibraryCompactGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 val rowHeight = ITEM_HEIGHT_GRID + CommonMangaItemDefaults.GridVerticalSpacer
                 val rows = max(1, (availableHeight / rowHeight).toInt())
@@ -243,7 +246,7 @@ internal fun PagedLibraryComfortableGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 // Comfortable grid items are taller due to title below
                 val rowHeight = ITEM_HEIGHT_GRID + COMFORTABLE_GRID_TITLE_HEIGHT + CommonMangaItemDefaults.GridVerticalSpacer
@@ -402,7 +405,7 @@ internal fun PagedLibraryList(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 max(1, (availableHeight / ITEM_HEIGHT_LIST).toInt())
             }

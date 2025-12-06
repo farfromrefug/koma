@@ -52,12 +52,15 @@ import kotlin.math.max
 private const val CHAPTERS_PER_PAGE_LIST = 10
 private const val CHAPTERS_PER_PAGE_GRID = 12
 
-// Item height estimates
-private val CHAPTER_ITEM_HEIGHT_LIST = 72.dp
-private val CHAPTER_ITEM_HEIGHT_GRID = 200.dp
+// Item height estimates (conservative estimates to prevent overflow)
+private val CHAPTER_ITEM_HEIGHT_LIST = 80.dp
+private val CHAPTER_ITEM_HEIGHT_GRID = 220.dp
 
 // Page indicator height
 private val PAGE_INDICATOR_HEIGHT = 60.dp
+
+// Safety margin to prevent items from being cut off
+private val SAFETY_MARGIN = 16.dp
 
 // Swipe threshold
 private const val SWIPE_THRESHOLD = 100f

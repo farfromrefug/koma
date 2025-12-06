@@ -44,16 +44,22 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 
-// Item height estimates for calculating items per page
-private val ITEM_HEIGHT_LIST = 60.dp
-private val ITEM_HEIGHT_GRID = 200.dp
-private val ITEM_HEIGHT_COMFORTABLE_GRID = 240.dp
+// Item height estimates for calculating items per page (conservative estimates to prevent overflow)
+private val ITEM_HEIGHT_LIST = 70.dp
+private val ITEM_HEIGHT_GRID = 220.dp
+private val ITEM_HEIGHT_COMFORTABLE_GRID = 264.dp
 
 // Page indicator height
 private val PAGE_INDICATOR_HEIGHT = 60.dp
 
+// Safety margin to prevent items from being cut off
+private val SAFETY_MARGIN = 16.dp
+
 // Minimum swipe distance to trigger page change
 private const val SWIPE_THRESHOLD = 100f
+
+// Default column count when adaptive grid is used
+private const val DEFAULT_ADAPTIVE_COLUMNS = 3
 
 @Composable
 fun PagedBrowseSourceCompactGrid(
@@ -66,12 +72,28 @@ fun PagedBrowseSourceCompactGrid(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     var containerHeight by remember { mutableIntStateOf(0) }
+    var containerWidth by remember { mutableIntStateOf(0) }
 
-    // Convert columns to a fixed number for calculation
-    val columnCount = when (columns) {
-        is GridCells.Fixed -> columns.count
-        is GridCells.Adaptive -> 3 // Default fallback
-        else -> 3
+    // Calculate column count dynamically based on container width for adaptive grids
+    val columnCount by remember(containerWidth, columns) {
+        derivedStateOf {
+            when (columns) {
+                is GridCells.Adaptive -> {
+                    if (containerWidth > 0) {
+                        val minSize = with(density) { 128.dp.toPx() }
+                        max(1, (containerWidth / minSize).toInt())
+                    } else {
+                        DEFAULT_ADAPTIVE_COLUMNS
+                    }
+                }
+                is GridCells.Fixed -> {
+                    // For Fixed, we can't access count directly, so estimate based on container width
+                    // The columns parameter tells LazyVerticalGrid how many columns to use
+                    DEFAULT_ADAPTIVE_COLUMNS
+                }
+                else -> DEFAULT_ADAPTIVE_COLUMNS
+            }
+        }
     }
 
     val itemsPerPage by remember(containerHeight, columnCount) {
@@ -81,7 +103,7 @@ fun PagedBrowseSourceCompactGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 val rowHeight = ITEM_HEIGHT_GRID + CommonMangaItemDefaults.GridVerticalSpacer
                 val rows = max(1, (availableHeight / rowHeight).toInt())
@@ -110,7 +132,10 @@ fun PagedBrowseSourceCompactGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerHeight = it.height }
+            .onSizeChanged { 
+                containerHeight = it.height
+                containerWidth = it.width
+            }
             .pointerInput(totalPages, currentPage) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
@@ -212,11 +237,24 @@ fun PagedBrowseSourceComfortableGrid(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     var containerHeight by remember { mutableIntStateOf(0) }
+    var containerWidth by remember { mutableIntStateOf(0) }
 
-    val columnCount = when (columns) {
-        is GridCells.Fixed -> columns.count
-        is GridCells.Adaptive -> 3
-        else -> 3
+    // Calculate column count dynamically based on container width for adaptive grids
+    val columnCount by remember(containerWidth, columns) {
+        derivedStateOf {
+            when (columns) {
+                is GridCells.Adaptive -> {
+                    if (containerWidth > 0) {
+                        val minSize = with(density) { 128.dp.toPx() }
+                        max(1, (containerWidth / minSize).toInt())
+                    } else {
+                        DEFAULT_ADAPTIVE_COLUMNS
+                    }
+                }
+                is GridCells.Fixed -> DEFAULT_ADAPTIVE_COLUMNS
+                else -> DEFAULT_ADAPTIVE_COLUMNS
+            }
+        }
     }
 
     val itemsPerPage by remember(containerHeight, columnCount) {
@@ -226,7 +264,7 @@ fun PagedBrowseSourceComfortableGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 val rowHeight = ITEM_HEIGHT_COMFORTABLE_GRID + CommonMangaItemDefaults.GridVerticalSpacer
                 val rows = max(1, (availableHeight / rowHeight).toInt())
@@ -254,7 +292,10 @@ fun PagedBrowseSourceComfortableGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerHeight = it.height }
+            .onSizeChanged { 
+                containerHeight = it.height
+                containerWidth = it.width
+            }
             .pointerInput(totalPages, currentPage) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
@@ -363,7 +404,7 @@ fun PagedBrowseSourceList(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 max(1, (availableHeight / ITEM_HEIGHT_LIST).toInt())
             }

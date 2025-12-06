@@ -95,7 +95,7 @@ fun PagedChapterList(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 max(1, (availableHeight / CHAPTER_ITEM_HEIGHT_LIST).toInt())
             }
@@ -260,7 +260,7 @@ fun PagedChapterGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT - SAFETY_MARGIN
                 }
                 val rowHeight = CHAPTER_ITEM_HEIGHT_GRID + 8.dp
                 val rows = max(1, (availableHeight / rowHeight).toInt())

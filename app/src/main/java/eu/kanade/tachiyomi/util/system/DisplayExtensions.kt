@@ -19,7 +19,16 @@ private const val TABLET_UI_MIN_SCREEN_WIDTH_PORTRAIT_DP = 700
 private const val TABLET_UI_MIN_SCREEN_WIDTH_LANDSCAPE_DP = 600
 
 fun Configuration.isTabletUi(): Boolean {
-    return smallestScreenWidthDp >= TABLET_UI_REQUIRED_SCREEN_WIDTH_DP
+    return when (Injekt.get<UiPreferences>().tabletUiMode().get()) {
+        TabletUiMode.AUTOMATIC ->
+            smallestScreenWidthDp >= TABLET_UI_REQUIRED_SCREEN_WIDTH_DP
+
+        TabletUiMode.ALWAYS -> true
+        TabletUiMode.LANDSCAPE ->
+            //TODO: need to check configuration
+            smallestScreenWidthDp >= TABLET_UI_REQUIRED_SCREEN_WIDTH_DP
+        TabletUiMode.NEVER -> false
+    }
 }
 
 // TODO: move the logic to `isTabletUi()` when main activity is rewritten in Compose

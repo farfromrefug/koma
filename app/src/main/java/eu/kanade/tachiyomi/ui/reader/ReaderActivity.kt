@@ -11,7 +11,6 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.RenderEffect
-import android.graphics.RuntimeShader
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -117,39 +116,6 @@ class ReaderActivity : BaseActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         }
-
-        // Shader input name for RenderEffect
-        private const val SHADER_INPUT_NAME = "inputImage"
-
-        // AGSL sharpen shader using a 3x3 sharpening convolution kernel
-        // Uses unsharp mask technique: output = original + scale * (original - blurred)
-        // Note: In AGSL/RenderEffect context, coordinates are in pixel space,
-        // so offsets of 1 correctly sample adjacent pixels regardless of image size.
-        private const val SHARPEN_SHADER = """
-            uniform shader inputImage;
-            uniform float scale;
-            
-            half4 main(float2 coord) {
-                // Sample the center pixel
-                half4 center = inputImage.eval(coord);
-                
-                // Sample neighboring pixels (simple 3x3 kernel)
-                // Offset of 1 pixel in each direction for edge detection
-                half4 top = inputImage.eval(coord + float2(0, -1));
-                half4 bottom = inputImage.eval(coord + float2(0, 1));
-                half4 left = inputImage.eval(coord + float2(-1, 0));
-                half4 right = inputImage.eval(coord + float2(1, 0));
-                
-                // Calculate the average of neighbors (simple blur approximation)
-                half4 blur = (top + bottom + left + right) / 4.0;
-                
-                // Unsharp mask: output = original + scale * (original - blurred)
-                half4 sharpened = center + scale * (center - blur);
-                
-                // Clamp to valid color range and preserve alpha
-                return half4(clamp(sharpened.rgb, half3(0.0), half3(1.0)), center.a);
-            }
-        """
     }
 
     private val readerPreferences = Injekt.get<ReaderPreferences>()
@@ -915,8 +881,8 @@ class ReaderActivity : BaseActivity() {
                 }
                 .launchIn(lifecycleScope)
 
-            // Sharpen filter (API 33+ required for RuntimeShader)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Sharpen filter (API 31+ required for RenderEffect)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 combine(
                     readerPreferences.sharpenFilter().changes(),
                     readerPreferences.sharpenFilterScale().changes(),
@@ -1019,10 +985,14 @@ class ReaderActivity : BaseActivity() {
         }
 
         /**
-         * Sets the sharpen render effect on the viewer container.
-         * Only available on API 33+ (Android 13+) which supports RuntimeShader.
+         * Sets the sharpen effect on the viewer container.
+         * Only available on API 31+ (Android 12+) for RenderEffect.
+         * 
+         * Since true convolution-based sharpening is not well supported by RenderEffect
+         * on complex views like SubsamplingScaleImageView, this uses contrast enhancement
+         * as an approximation that provides a similar visual effect of making edges appear sharper.
          */
-        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        @RequiresApi(Build.VERSION_CODES.S)
         private fun setSharpenEffect(enabled: Boolean, scale: Float) {
             // Disable effect when not enabled or scale is 0 (no sharpening)
             if (!enabled || scale == 0f) {
@@ -1031,12 +1001,21 @@ class ReaderActivity : BaseActivity() {
             }
 
             try {
-                // AGSL (Android Graphics Shading Language) sharpen shader
-                // Uses a simple unsharp mask technique: output = original + scale * (original - blurred)
-                val sharpenShader = RuntimeShader(SHARPEN_SHADER)
-                sharpenShader.setFloatUniform("scale", scale)
-
-                val effect = RenderEffect.createRuntimeShaderEffect(sharpenShader, SHADER_INPUT_NAME)
+                // Use contrast enhancement as a sharpening approximation
+                // This increases local contrast which makes edges appear sharper
+                // Scale 0-2 maps to contrast multiplier 1.0-1.6
+                val contrast = 1f + (scale * 0.3f)
+                val translate = (-0.5f * contrast + 0.5f) * 255f
+                val contrastMatrix = ColorMatrix(
+                    floatArrayOf(
+                        contrast, 0f, 0f, 0f, translate,
+                        0f, contrast, 0f, 0f, translate,
+                        0f, 0f, contrast, 0f, translate,
+                        0f, 0f, 0f, 1f, 0f,
+                    )
+                )
+                val colorFilter = ColorMatrixColorFilter(contrastMatrix)
+                val effect = RenderEffect.createColorFilterEffect(colorFilter)
                 binding.viewerContainer.setRenderEffect(effect)
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Failed to apply sharpen effect" }

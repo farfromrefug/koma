@@ -106,6 +106,7 @@ class MangaScreen(
         val chapterGridPortraitColumns by screenModel.chapterGridPortraitColumns.collectAsState()
         val chapterGridLandscapeColumns by screenModel.chapterGridLandscapeColumns.collectAsState()
         val chapterGridColumns = if (isLandscape) chapterGridLandscapeColumns else chapterGridPortraitColumns
+        val pagedModeEnabled by screenModel.pagedModeEnabled.collectAsState()
 
         // Get compact manga details preference
         val uiPreferences = remember { Injekt.get<UiPreferences>() }
@@ -141,6 +142,7 @@ class MangaScreen(
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
             chapterDisplayMode = chapterDisplayMode,
             chapterGridColumns = chapterGridColumns,
+            pagedModeEnabled = pagedModeEnabled,
             navigateUp = navigator::pop,
             onChapterClicked = { openChapter(context, it) },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },

@@ -19,6 +19,9 @@ import androidx.paging.compose.LazyPagingItems
 import eu.kanade.presentation.browse.components.BrowseSourceComfortableGrid
 import eu.kanade.presentation.browse.components.BrowseSourceCompactGrid
 import eu.kanade.presentation.browse.components.BrowseSourceList
+import eu.kanade.presentation.browse.components.PagedBrowseSourceComfortableGrid
+import eu.kanade.presentation.browse.components.PagedBrowseSourceCompactGrid
+import eu.kanade.presentation.browse.components.PagedBrowseSourceList
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.source.Source
@@ -44,6 +47,7 @@ fun BrowseSourceContent(
     displayMode: LibraryDisplayMode,
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues,
+    pagedModeEnabled: Boolean = false,
     onWebViewClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLocalSourceHelpClick: () -> Unit,
@@ -119,30 +123,59 @@ fun BrowseSourceContent(
 
     when (displayMode) {
         LibraryDisplayMode.ComfortableGrid -> {
-            BrowseSourceComfortableGrid(
-                mangaList = mangaList,
-                columns = columns,
-                contentPadding = contentPadding,
-                onMangaClick = onMangaClick,
-                onMangaLongClick = onMangaLongClick,
-            )
+            if (pagedModeEnabled) {
+                PagedBrowseSourceComfortableGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            } else {
+                BrowseSourceComfortableGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            }
         }
         LibraryDisplayMode.List -> {
-            BrowseSourceList(
-                mangaList = mangaList,
-                contentPadding = contentPadding,
-                onMangaClick = onMangaClick,
-                onMangaLongClick = onMangaLongClick,
-            )
+            if (pagedModeEnabled) {
+                PagedBrowseSourceList(
+                    mangaList = mangaList,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            } else {
+                BrowseSourceList(
+                    mangaList = mangaList,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            }
         }
         LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
-            BrowseSourceCompactGrid(
-                mangaList = mangaList,
-                columns = columns,
-                contentPadding = contentPadding,
-                onMangaClick = onMangaClick,
-                onMangaLongClick = onMangaLongClick,
-            )
+            if (pagedModeEnabled) {
+                PagedBrowseSourceCompactGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            } else {
+                BrowseSourceCompactGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            }
         }
     }
 }

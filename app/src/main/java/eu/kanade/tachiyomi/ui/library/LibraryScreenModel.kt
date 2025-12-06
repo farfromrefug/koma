@@ -12,6 +12,7 @@ import eu.kanade.core.util.fastFilterNot
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.domain.manga.interactor.UpdateManga
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.presentation.library.components.LibraryToolbarTitle
 import eu.kanade.presentation.manga.DownloadAction
@@ -78,6 +79,7 @@ class LibraryScreenModel(
     private val setMangaCategories: SetMangaCategories = Injekt.get(),
     private val preferences: BasePreferences = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val uiPreferences: UiPreferences = Injekt.get(),
     private val coverCache: CoverCache = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val downloadManager: DownloadManager = Injekt.get(),
@@ -571,6 +573,10 @@ class LibraryScreenModel(
     fun getColumnsForOrientation(isLandscape: Boolean): PreferenceMutableState<Int> {
         return (if (isLandscape) libraryPreferences.landscapeColumns() else libraryPreferences.portraitColumns())
             .asState(screenModelScope)
+    }
+
+    fun isPagedModeEnabled(): PreferenceMutableState<Boolean> {
+        return uiPreferences.pagedModeEnabled().asState(screenModelScope)
     }
 
     fun getRandomLibraryItemForCurrentCategory(): LibraryItem? {

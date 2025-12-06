@@ -47,6 +47,9 @@ class UiPreferences(
 
     fun showHistoryTab() = preferenceStore.getBoolean("pref_show_history_tab", true)
 
+    // Paged mode for e-ink devices - displays content page by page instead of scrolling
+    fun pagedModeEnabled() = preferenceStore.getBoolean("pref_paged_mode_enabled", false)
+
     companion object {
         fun dateFormat(format: String): DateTimeFormatter = when (format) {
             "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)

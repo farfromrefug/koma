@@ -27,6 +27,12 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import kotlin.math.max
 
+// Page indicator height constant for layout calculations
+private val PAGE_INDICATOR_HEIGHT = 60.dp
+
+// Default adaptive grid cell size
+private val ADAPTIVE_GRID_CELL_SIZE = 128.dp
+
 /**
  * Configuration for the paged grid layout
  */
@@ -69,7 +75,7 @@ fun <T> PagedGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() - 
-                        contentPadding.calculateBottomPadding() - 60.dp // Page indicator height
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
                 }
                 val rowHeight = config.itemHeight + config.verticalSpacing
                 val rows = max(1, (availableHeight / rowHeight).toInt())
@@ -113,7 +119,7 @@ fun <T> PagedGrid(
                 .fillMaxWidth(),
         ) {
             LazyVerticalGrid(
-                columns = if (config.columns == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(config.columns),
+                columns = if (config.columns == 0) GridCells.Adaptive(ADAPTIVE_GRID_CELL_SIZE) else GridCells.Fixed(config.columns),
                 contentPadding = contentPadding,
                 verticalArrangement = Arrangement.spacedBy(config.verticalSpacing),
                 horizontalArrangement = Arrangement.spacedBy(config.horizontalSpacing),

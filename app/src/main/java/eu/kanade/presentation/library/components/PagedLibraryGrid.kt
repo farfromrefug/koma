@@ -30,10 +30,22 @@ import tachiyomi.presentation.core.util.plus
 import kotlin.math.ceil
 import kotlin.math.max
 
+// Default items per page values - these are fallbacks when container size cannot be measured
 private const val ITEMS_PER_PAGE_DEFAULT = 12
 private const val LIST_ITEMS_PER_PAGE_DEFAULT = 8
+
+// Item height estimates for calculating items per page
 private val ITEM_HEIGHT_GRID = 200.dp
 private val ITEM_HEIGHT_LIST = 60.dp
+
+// Page indicator height - must be consistent across all paged components
+private val PAGE_INDICATOR_HEIGHT = 60.dp
+
+// Additional height for comfortable grid items (title below cover)
+private val COMFORTABLE_GRID_TITLE_HEIGHT = 40.dp
+
+// Default adaptive grid cell size
+private val ADAPTIVE_GRID_CELL_SIZE = 128.dp
 
 @Composable
 internal fun PagedLibraryCompactGrid(
@@ -60,7 +72,7 @@ internal fun PagedLibraryCompactGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - 60.dp
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
                 }
                 val rowHeight = ITEM_HEIGHT_GRID + CommonMangaItemDefaults.GridVerticalSpacer
                 val rows = max(1, (availableHeight / rowHeight).toInt())
@@ -98,7 +110,7 @@ internal fun PagedLibraryCompactGrid(
                 .fillMaxWidth(),
         ) {
             LazyVerticalGrid(
-                columns = if (actualColumns == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(actualColumns),
+                columns = if (actualColumns == 0) GridCells.Adaptive(ADAPTIVE_GRID_CELL_SIZE) else GridCells.Fixed(actualColumns),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding + PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
@@ -194,10 +206,10 @@ internal fun PagedLibraryComfortableGrid(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - 60.dp
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
                 }
                 // Comfortable grid items are taller due to title below
-                val rowHeight = ITEM_HEIGHT_GRID + 40.dp + CommonMangaItemDefaults.GridVerticalSpacer
+                val rowHeight = ITEM_HEIGHT_GRID + COMFORTABLE_GRID_TITLE_HEIGHT + CommonMangaItemDefaults.GridVerticalSpacer
                 val rows = max(1, (availableHeight / rowHeight).toInt())
                 rows * actualColumns
             }
@@ -233,7 +245,7 @@ internal fun PagedLibraryComfortableGrid(
                 .fillMaxWidth(),
         ) {
             LazyVerticalGrid(
-                columns = if (actualColumns == 0) GridCells.Adaptive(128.dp) else GridCells.Fixed(actualColumns),
+                columns = if (actualColumns == 0) GridCells.Adaptive(ADAPTIVE_GRID_CELL_SIZE) else GridCells.Fixed(actualColumns),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding + PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(CommonMangaItemDefaults.GridVerticalSpacer),
@@ -326,7 +338,7 @@ internal fun PagedLibraryList(
             } else {
                 val availableHeight = with(density) {
                     containerHeight.toDp() - contentPadding.calculateTopPadding() -
-                        contentPadding.calculateBottomPadding() - 60.dp
+                        contentPadding.calculateBottomPadding() - PAGE_INDICATOR_HEIGHT
                 }
                 max(1, (availableHeight / ITEM_HEIGHT_LIST).toInt())
             }

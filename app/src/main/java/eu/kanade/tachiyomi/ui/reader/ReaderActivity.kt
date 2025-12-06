@@ -991,6 +991,9 @@ class ReaderActivity : BaseActivity() {
          * Since true convolution-based sharpening is not well supported by RenderEffect
          * on complex views like SubsamplingScaleImageView, this uses contrast enhancement
          * as an approximation that provides a similar visual effect of making edges appear sharper.
+         * 
+         * @param enabled Whether the sharpen filter is enabled
+         * @param scale The sharpen intensity (0.0 to 2.0, validated by preferences slider)
          */
         @RequiresApi(Build.VERSION_CODES.S)
         private fun setSharpenEffect(enabled: Boolean, scale: Float) {
@@ -1003,8 +1006,11 @@ class ReaderActivity : BaseActivity() {
             try {
                 // Use contrast enhancement as a sharpening approximation
                 // This increases local contrast which makes edges appear sharper
-                // Scale 0-2 maps to contrast multiplier 1.0-1.6
-                val contrast = 1f + (scale * 0.3f)
+                // Scale 0.0-2.0 (from preferences) maps to contrast multiplier 1.0-1.6
+                val contrastScaleFactor = 0.3f // How much scale affects contrast (0.3 = 30% max increase)
+                val contrast = 1f + (scale * contrastScaleFactor)
+                // Translation to maintain brightness while changing contrast
+                // Formula: translate = (1 - contrast) * 0.5 * 255
                 val translate = (-0.5f * contrast + 0.5f) * 255f
                 val contrastMatrix = ColorMatrix(
                     floatArrayOf(

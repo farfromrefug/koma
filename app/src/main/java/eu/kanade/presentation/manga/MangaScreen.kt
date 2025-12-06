@@ -852,7 +852,6 @@ private fun MangaScreenCompactImpl(
     onInvertSelection: () -> Unit,
 ) {
     val chapterListState = rememberLazyListState()
-    val chapterGridState = rememberLazyGridState()
 
     val (chapters, listItem, isAnySelected) = remember(state) {
         Triple(

@@ -573,6 +573,10 @@ class LibraryScreenModel(
             .asState(screenModelScope)
     }
 
+    fun isPagedModeEnabled(): PreferenceMutableState<Boolean> {
+        return libraryPreferences.pagedModeEnabled().asState(screenModelScope)
+    }
+
     fun getRandomLibraryItemForCurrentCategory(): LibraryItem? {
         val state = state.value
         return state.getItemsForCategoryId(state.activeCategory?.id).randomOrNull()

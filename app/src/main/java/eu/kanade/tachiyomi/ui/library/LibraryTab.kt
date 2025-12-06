@@ -214,6 +214,7 @@ data object LibraryTab : Tab {
                         getDisplayMode = { screenModel.getDisplayMode() },
                         getColumnsForOrientation = { screenModel.getColumnsForOrientation(it) },
                         getItemsForCategory = { state.getItemsForCategory(it) },
+                        isPagedModeEnabled = { screenModel.isPagedModeEnabled() },
                     )
                 }
             }

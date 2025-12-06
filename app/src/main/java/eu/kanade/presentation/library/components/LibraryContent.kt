@@ -45,7 +45,10 @@ fun LibraryContent(
     getDisplayMode: (Int) -> PreferenceMutableState<LibraryDisplayMode>,
     getColumnsForOrientation: (Boolean) -> PreferenceMutableState<Int>,
     getItemsForCategory: (Category) -> List<LibraryItem>,
+    isPagedModeEnabled: () -> PreferenceMutableState<Boolean>,
 ) {
+    val pagedModeState by isPagedModeEnabled()
+
     Column(
         modifier = Modifier.padding(
             top = contentPadding.calculateTopPadding(),
@@ -110,6 +113,7 @@ fun LibraryContent(
                 },
                 onLongClickManga = onToggleRangeSelection,
                 onClickContinueReading = onContinueReadingClicked,
+                pagedModeEnabled = pagedModeState,
             )
         }
 

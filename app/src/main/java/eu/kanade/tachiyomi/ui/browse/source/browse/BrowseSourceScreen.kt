@@ -36,6 +36,7 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.browse.BrowseSourceContent
 import eu.kanade.presentation.browse.MissingSourceScreen
 import eu.kanade.presentation.browse.components.BrowseSourceToolbar
@@ -64,7 +65,10 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.source.local.LocalSource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 data class BrowseSourceScreen(
     val sourceId: Long,
@@ -105,6 +109,10 @@ data class BrowseSourceScreen(
         val haptic = LocalHapticFeedback.current
         val uriHandler = LocalUriHandler.current
         val snackbarHostState = remember { SnackbarHostState() }
+
+        // Get paged mode preference
+        val uiPreferences = remember { Injekt.get<UiPreferences>() }
+        val pagedModeEnabled by uiPreferences.pagedModeEnabled().collectAsState()
 
         val onHelpClick = { uriHandler.openUri(LocalSource.HELP_URL) }
         val onWebViewClick = f@{
@@ -217,6 +225,7 @@ data class BrowseSourceScreen(
                 displayMode = screenModel.displayMode,
                 snackbarHostState = snackbarHostState,
                 contentPadding = paddingValues,
+                pagedModeEnabled = pagedModeEnabled,
                 onWebViewClick = onWebViewClick,
                 onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
                 onLocalSourceHelpClick = onHelpClick,

@@ -102,6 +102,7 @@ class MangaScreenModel(
     private val mangaId: Long,
     private val isFromSource: Boolean,
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val uiPreferences: eu.kanade.domain.ui.UiPreferences = Injekt.get(),
     private val trackPreferences: TrackPreferences = Injekt.get(),
     readerPreferences: ReaderPreferences = Injekt.get(),
     private val trackerManager: TrackerManager = Injekt.get(),
@@ -157,6 +158,9 @@ class MangaScreenModel(
     val chapterDisplayMode = libraryPreferences.chapterDisplayMode()
     val chapterGridPortraitColumns = libraryPreferences.chapterGridPortraitColumns()
     val chapterGridLandscapeColumns = libraryPreferences.chapterGridLandscapeColumns()
+
+    // Paged mode for e-ink devices
+    val pagedModeEnabled = uiPreferences.pagedModeEnabled()
 
     private val skipFiltered by readerPreferences.skipFiltered().asState(screenModelScope)
 

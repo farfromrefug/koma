@@ -103,6 +103,7 @@ class MangaScreen(
         val chapterGridPortraitColumns by screenModel.chapterGridPortraitColumns.collectAsState()
         val chapterGridLandscapeColumns by screenModel.chapterGridLandscapeColumns.collectAsState()
         val chapterGridColumns = if (isLandscape) chapterGridLandscapeColumns else chapterGridPortraitColumns
+        val pagedModeEnabled by screenModel.pagedModeEnabled.collectAsState()
 
         if (state is MangaScreenModel.State.Loading) {
             LoadingScreen()
@@ -133,6 +134,7 @@ class MangaScreen(
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
             chapterDisplayMode = chapterDisplayMode,
             chapterGridColumns = chapterGridColumns,
+            pagedModeEnabled = pagedModeEnabled,
             navigateUp = navigator::pop,
             onChapterClicked = { openChapter(context, it) },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },

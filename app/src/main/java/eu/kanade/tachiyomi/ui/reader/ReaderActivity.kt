@@ -914,8 +914,8 @@ class ReaderActivity : BaseActivity() {
                 }
                 .launchIn(lifecycleScope)
 
-            // Sharpen filter (API 33+ required for RuntimeShader)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Sharpen filter (API 31+ with fallback, API 33+ for true sharpening)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 combine(
                     readerPreferences.sharpenFilter().changes(),
                     readerPreferences.sharpenFilterScale().changes(),

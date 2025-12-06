@@ -29,6 +29,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
 import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.domain.manga.model.toSManga
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.components.NavigatorAdaptiveSheet
 import eu.kanade.presentation.manga.ChapterSettingsDialog
@@ -70,6 +71,8 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.collectAsState
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class MangaScreen(
     private val mangaId: Long,
@@ -104,6 +107,10 @@ class MangaScreen(
         val chapterGridLandscapeColumns by screenModel.chapterGridLandscapeColumns.collectAsState()
         val chapterGridColumns = if (isLandscape) chapterGridLandscapeColumns else chapterGridPortraitColumns
 
+        // Get compact tablet UI preference
+        val uiPreferences = remember { Injekt.get<UiPreferences>() }
+        val isCompactTabletUi = remember { uiPreferences.compactMangaDetailsTablet().get() }
+
         if (state is MangaScreenModel.State.Loading) {
             LoadingScreen()
             return
@@ -129,6 +136,7 @@ class MangaScreen(
             snackbarHostState = screenModel.snackbarHostState,
             nextUpdate = successState.manga.expectedNextUpdate,
             isTabletUi = isTabletUi(),
+            isCompactTabletUi = isCompactTabletUi,
             chapterSwipeStartAction = screenModel.chapterSwipeStartAction,
             chapterSwipeEndAction = screenModel.chapterSwipeEndAction,
             chapterDisplayMode = chapterDisplayMode,

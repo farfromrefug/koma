@@ -175,6 +175,64 @@ fun MangaInfoBox(
     }
 }
 
+/**
+ * Compact version of MangaInfoBox for tablet compact mode.
+ * Shows cover on the left and manga info on the right (similar to phone layout).
+ */
+@Composable
+fun MangaInfoBoxCompact(
+    appBarPadding: Dp,
+    manga: Manga,
+    sourceName: String,
+    isStubSource: Boolean,
+    onCoverClick: () -> Unit,
+    doSearch: (query: String, global: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val preferences = remember { Injekt.get<UiPreferences>() }
+    val showCoverBackdrop = remember { preferences.showCoverBackdrop().get() }
+
+    Box(modifier = modifier) {
+        // Backdrop
+        if (showCoverBackdrop) {
+            val backdropGradientColors = listOf(
+                Color.Transparent,
+                MaterialTheme.colorScheme.background,
+            )
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(manga)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(colors = backdropGradientColors),
+                        )
+                    }
+                    .blur(4.dp)
+                    .alpha(0.2f),
+            )
+        }
+
+        // Manga & source info - uses compact/small layout
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            MangaAndSourceTitlesSmall(
+                appBarPadding = appBarPadding,
+                manga = manga,
+                sourceName = sourceName,
+                isStubSource = isStubSource,
+                onCoverClick = onCoverClick,
+                doSearch = doSearch,
+            )
+        }
+    }
+}
+
 @Composable
 fun MangaActionRow(
     favorite: Boolean,
@@ -572,7 +630,7 @@ private fun ColumnScope.MangaContentInfo(
     }
 }
 
-private fun descriptionAnnotator(loadImages: Boolean, linkStyle: SpanStyle) = markdownAnnotator(
+internal fun descriptionAnnotator(loadImages: Boolean, linkStyle: SpanStyle) = markdownAnnotator(
     annotate = { content, child ->
         if (!loadImages && child.type == MarkdownElementTypes.IMAGE) {
             val inlineLink = child.findChildOfType(MarkdownElementTypes.INLINE_LINK)
@@ -702,6 +760,21 @@ private fun MangaSummary(
 }
 
 private val DefaultTagChipModifier = Modifier.padding(vertical = 4.dp)
+
+@Composable
+internal fun MangaTagsChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        SuggestionChip(
+            modifier = modifier.padding(vertical = 4.dp),
+            onClick = onClick,
+            label = { Text(text = text, style = MaterialTheme.typography.bodySmall) },
+        )
+    }
+}
 
 @Composable
 private fun TagsChip(

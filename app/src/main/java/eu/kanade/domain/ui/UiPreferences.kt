@@ -34,6 +34,8 @@ class UiPreferences(
 
     fun tabletUiMode() = preferenceStore.getEnum("tablet_ui_mode", TabletUiMode.AUTOMATIC)
 
+    fun compactMangaDetailsTablet() = preferenceStore.getBoolean("pref_compact_manga_details_tablet", false)
+
     fun imagesInDescription() = preferenceStore.getBoolean("pref_render_images_description", true)
 
     fun showCoverBackdrop() = preferenceStore.getBoolean("pref_show_cover_backdrop", true)

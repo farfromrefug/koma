@@ -1,10 +1,14 @@
 package eu.kanade.presentation.manga.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
@@ -94,6 +98,177 @@ fun MangaToolbar(
                         )
                         return@apply
                     }
+                    if (onClickDownload != null) {
+                        add(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.manga_download),
+                                icon = Icons.Outlined.Download,
+                                onClick = { downloadExpanded = !downloadExpanded },
+                            ),
+                        )
+                    }
+                    add(
+                        AppBar.Action(
+                            title = stringResource(MR.strings.action_filter),
+                            icon = Icons.Outlined.FilterList,
+                            iconTint = filterTint,
+                            onClick = onClickFilter,
+                        ),
+                    )
+                    add(
+                        AppBar.OverflowAction(
+                            title = stringResource(MR.strings.action_webview_refresh),
+                            onClick = onClickRefresh,
+                        ),
+                    )
+                    if (onClickEditCategory != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(MR.strings.action_edit_categories),
+                                onClick = onClickEditCategory,
+                            ),
+                        )
+                    }
+                    if (onClickMigrate != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(MR.strings.action_migrate),
+                                onClick = onClickMigrate,
+                            ),
+                        )
+                    }
+                    if (onClickShare != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(MR.strings.action_share),
+                                onClick = onClickShare,
+                            ),
+                        )
+                    }
+                    add(
+                        AppBar.OverflowAction(
+                            title = stringResource(MR.strings.action_notes),
+                            onClick = onClickEditNotes,
+                        ),
+                    )
+                }
+                    .build(),
+            )
+        },
+        isActionMode = isActionMode,
+        onCancelActionMode = onCancelActionMode,
+    )
+}
+
+/**
+ * Toolbar for compact tablet mode with library, tracking, and description buttons in the toolbar.
+ */
+@Composable
+fun MangaToolbarCompact(
+    title: String,
+    hasFilters: Boolean,
+    favorite: Boolean,
+    trackingCount: Int,
+    navigateUp: () -> Unit,
+    onClickFilter: () -> Unit,
+    onClickShare: (() -> Unit)?,
+    onClickDownload: ((DownloadAction) -> Unit)?,
+    onClickEditCategory: (() -> Unit)?,
+    onClickRefresh: () -> Unit,
+    onClickMigrate: (() -> Unit)?,
+    onClickEditNotes: () -> Unit,
+    onAddToLibraryClicked: () -> Unit,
+    onTrackingClicked: () -> Unit,
+    onDescriptionClicked: () -> Unit,
+
+    // For action mode
+    actionModeCounter: Int,
+    onCancelActionMode: () -> Unit,
+    onSelectAll: () -> Unit,
+    onInvertSelection: () -> Unit,
+
+    titleAlphaProvider: () -> Float,
+    backgroundAlphaProvider: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    val isActionMode = actionModeCounter > 0
+    AppBar(
+        titleContent = {
+            if (isActionMode) {
+                AppBarTitle(actionModeCounter.toString())
+            } else {
+                AppBarTitle(title, modifier = Modifier.alpha(titleAlphaProvider()))
+            }
+        },
+        modifier = modifier,
+        backgroundColor = MaterialTheme.colorScheme
+            .surfaceColorAtElevation(3.dp)
+            .copy(alpha = if (isActionMode) 1f else backgroundAlphaProvider()),
+        navigateUp = navigateUp,
+        actions = {
+            var downloadExpanded by remember { mutableStateOf(false) }
+            if (onClickDownload != null) {
+                val onDismissRequest = { downloadExpanded = false }
+                DownloadDropdownMenu(
+                    expanded = downloadExpanded,
+                    onDismissRequest = onDismissRequest,
+                    onDownloadClicked = onClickDownload,
+                )
+            }
+
+            val filterTint = if (hasFilters) MaterialTheme.colorScheme.active else LocalContentColor.current
+            val favoriteIconTint = if (favorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+            val trackingIconTint = if (trackingCount > 0) MaterialTheme.colorScheme.primary else LocalContentColor.current
+
+            AppBarActions(
+                actions = persistentListOf<AppBar.AppBarAction>().builder().apply {
+                    if (isActionMode) {
+                        add(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.action_select_all),
+                                icon = Icons.Outlined.SelectAll,
+                                onClick = onSelectAll,
+                            ),
+                        )
+                        add(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.action_select_inverse),
+                                icon = Icons.Outlined.FlipToBack,
+                                onClick = onInvertSelection,
+                            ),
+                        )
+                        return@apply
+                    }
+                    // Add library button
+                    add(
+                        AppBar.Action(
+                            title = if (favorite) {
+                                stringResource(MR.strings.in_library)
+                            } else {
+                                stringResource(MR.strings.add_to_library)
+                            },
+                            icon = if (favorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            iconTint = favoriteIconTint,
+                            onClick = onAddToLibraryClicked,
+                        ),
+                    )
+                    // Add tracking button
+                    add(
+                        AppBar.Action(
+                            title = stringResource(MR.strings.manga_tracking_tab),
+                            icon = Icons.Outlined.Sync,
+                            iconTint = trackingIconTint,
+                            onClick = onTrackingClicked,
+                        ),
+                    )
+                    // Add description button
+                    add(
+                        AppBar.Action(
+                            title = stringResource(MR.strings.manga_info_description),
+                            icon = Icons.Outlined.Description,
+                            onClick = onDescriptionClicked,
+                        ),
+                    )
                     if (onClickDownload != null) {
                         add(
                             AppBar.Action(

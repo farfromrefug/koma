@@ -850,7 +850,15 @@ class ReaderActivity : BaseActivity() {
      */
     private inner class ReaderConfig {
 
-        private fun getCombinedPaint(grayscale: Boolean, invertedColors: Boolean): Paint {
+        // Current sharpen settings for combining with other paint effects on API < 31
+        private var currentSharpenEnabled = false
+        private var currentSharpenScale = 0f
+
+        private fun getCombinedPaint(grayscale: Boolean, invertedColors: Boolean, sharpenEnabled: Boolean = currentSharpenEnabled, sharpenScale: Float = currentSharpenScale): Paint? {
+            // Check if any effect is enabled
+            val needsPaint = grayscale || invertedColors || (sharpenEnabled && sharpenScale > 0f && Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
+            if (!needsPaint) return null
+            
             return Paint().apply {
                 colorFilter = ColorMatrixColorFilter(
                     ColorMatrix().apply {
@@ -864,6 +872,21 @@ class ReaderActivity : BaseActivity() {
                                         -1f, 0f, 0f, 0f, 255f,
                                         0f, -1f, 0f, 0f, 255f,
                                         0f, 0f, -1f, 0f, 255f,
+                                        0f, 0f, 0f, 1f, 0f,
+                                    ),
+                                ),
+                            )
+                        }
+                        // For API < 31, apply contrast enhancement as sharpening approximation
+                        if (sharpenEnabled && sharpenScale > 0f && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                            val contrastFactor = 1f + (sharpenScale * 0.3f)
+                            val translate = (-0.5f * contrastFactor + 0.5f) * 255f
+                            postConcat(
+                                ColorMatrix(
+                                    floatArrayOf(
+                                        contrastFactor, 0f, 0f, 0f, translate,
+                                        0f, contrastFactor, 0f, 0f, translate,
+                                        0f, 0f, contrastFactor, 0f, translate,
                                         0f, 0f, 0f, 1f, 0f,
                                     ),
                                 ),
@@ -905,26 +928,29 @@ class ReaderActivity : BaseActivity() {
                 .onEach(::setCustomBrightness)
                 .launchIn(lifecycleScope)
 
+            // Combine grayscale, inverted colors, and sharpen (for API < 31) filters
             combine(
                 readerPreferences.grayscale().changes(),
                 readerPreferences.invertedColors().changes(),
-            ) { grayscale, invertedColors -> grayscale to invertedColors }
-                .onEach { (grayscale, invertedColors) ->
-                    setLayerPaint(grayscale, invertedColors)
+                readerPreferences.sharpenFilter().changes(),
+                readerPreferences.sharpenFilterScale().changes(),
+            ) { grayscale, invertedColors, sharpenEnabled, sharpenScale ->
+                ColorFilterState(grayscale, invertedColors, sharpenEnabled, sharpenScale)
+            }
+                .onEach { state ->
+                    // Update current sharpen state for API < 31
+                    currentSharpenEnabled = state.sharpenEnabled
+                    currentSharpenScale = state.sharpenScale
+                    
+                    // Apply layer paint (includes sharpen for API < 31)
+                    setLayerPaint(state.grayscale, state.invertedColors)
+                    
+                    // For API 31+, apply RenderEffect-based sharpen
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        setSharpenEffect(state.sharpenEnabled, state.sharpenScale)
+                    }
                 }
                 .launchIn(lifecycleScope)
-
-            // Sharpen filter (API 31+ with fallback, API 33+ for true sharpening)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                combine(
-                    readerPreferences.sharpenFilter().changes(),
-                    readerPreferences.sharpenFilterScale().changes(),
-                ) { enabled, scale -> enabled to scale }
-                    .onEach { (enabled, scale) ->
-                        setSharpenEffect(enabled, scale)
-                    }
-                    .launchIn(lifecycleScope)
-            }
 
             combine(
                 readerPreferences.fullscreen().changes(),
@@ -1012,15 +1038,17 @@ class ReaderActivity : BaseActivity() {
 
             viewModel.setBrightnessOverlayValue(value)
         }
+        
         private fun setLayerPaint(grayscale: Boolean, invertedColors: Boolean) {
-            val paint = if (grayscale || invertedColors) getCombinedPaint(grayscale, invertedColors) else null
+            val paint = getCombinedPaint(grayscale, invertedColors)
             binding.viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
         }
 
         /**
          * Sets the sharpen effect on the viewer container.
          * - API 33+ (Android 13+): Uses RuntimeShader for true image sharpening via unsharp mask
-         * - API 31-32 (Android 12-12L): Falls back to contrast enhancement via ColorMatrix
+         * - API 31-32 (Android 12-12L): Uses RenderEffect with contrast enhancement
+         * - API < 31: Uses Paint ColorMatrix via setLayerType (handled by getCombinedPaint)
          * 
          * @param enabled Whether the sharpen filter is enabled
          * @param scale The sharpen intensity (0.0 to 2.0, validated by preferences slider)
@@ -1061,4 +1089,14 @@ class ReaderActivity : BaseActivity() {
             }
         }
     }
+    
+    /**
+     * Data class to hold color filter state for combining effects
+     */
+    private data class ColorFilterState(
+        val grayscale: Boolean,
+        val invertedColors: Boolean,
+        val sharpenEnabled: Boolean,
+        val sharpenScale: Float,
+    )
 }

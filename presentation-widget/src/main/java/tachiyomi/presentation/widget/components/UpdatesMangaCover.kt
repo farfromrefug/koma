@@ -22,8 +22,7 @@ fun UpdatesMangaCover(
     modifier: GlanceModifier = GlanceModifier,
 ) {
     Box(
-        modifier = modifier
-            .appWidgetInnerRadius(),
+        modifier = modifier,
     ) {
         if (cover != null) {
             Image(

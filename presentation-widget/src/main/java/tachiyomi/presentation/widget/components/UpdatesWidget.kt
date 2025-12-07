@@ -11,6 +11,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.CircularProgressIndicator
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -25,6 +26,8 @@ import kotlinx.collections.immutable.ImmutableList
 import tachiyomi.core.common.Constants
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.widget.R
+import tachiyomi.presentation.widget.util.appWidgetInnerRadius
 import tachiyomi.presentation.widget.util.calculateRowAndColumnCount
 
 @Composable
@@ -85,7 +88,8 @@ fun UpdatesWidget(
                                     }
                                     UpdatesMangaCover(
                                         cover = cover,
-                                        modifier = GlanceModifier.clickable(actionStartActivity(intent)),
+                                        modifier = GlanceModifier.clickable(actionStartActivity(intent))
+                                            .appWidgetInnerRadius(),
                                     )
                                 }
                             }

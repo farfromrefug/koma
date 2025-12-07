@@ -11,6 +11,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.CircularProgressIndicator
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -146,7 +147,7 @@ fun HistoryWidget(
                                     }
                                     UpdatesMangaCover(
                                         cover = cover,
-                                        modifier = GlanceModifier.size(itemWidth, itemHeight).clickable(actionStartActivity(intent)),
+                                        modifier = GlanceModifier.size(itemWidth, itemHeight).clickable(actionStartActivity(intent)).cornerRadius(itemWidth/20),
                                     )
                                 }
                             }

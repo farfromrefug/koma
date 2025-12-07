@@ -12,10 +12,12 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.updates.interactor.GetUpdates
 
 class WidgetManager(
     private val getUpdates: GetUpdates,
+    private val getHistory: GetHistory,
     private val securityPreferences: SecurityPreferences,
 ) {
 
@@ -33,6 +35,20 @@ class WidgetManager(
                 try {
                     UpdatesGridGlanceWidget().updateAll(this)
                     UpdatesGridCoverScreenGlanceWidget().updateAll(this)
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Failed to update widget" }
+                }
+            }
+            .flowOn(Dispatchers.Default)
+            .launchIn(scope)
+        combine(
+            getHistory.subscribe(query = ""),
+            securityPreferences.useAuthenticator().changes(),
+            transform = { a, b -> a to b },
+        )
+            .onEach {
+                try {
+                    HistoryGridCoverGlanceWidget().updateAll(this)
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "Failed to update widget" }
                 }

@@ -6,8 +6,10 @@ object Constants {
     const val URL_DONATE = "https://opencollective.com/mihon/contribute"
 
     const val MANGA_EXTRA = "manga"
+    const val CHAPTER_EXTRA = "chapter"
 
     const val MAIN_ACTIVITY = "eu.kanade.tachiyomi.ui.main.MainActivity"
+    const val READER_ACTIVITY = "eu.kanade.tachiyomi.ui.main.ReaderActivity"
 
     // Shortcut actions
     const val SHORTCUT_LIBRARY = "eu.kanade.tachiyomi.SHOW_LIBRARY"

@@ -1,3 +1,10 @@
+-- Add progress tracking columns to history table
+ALTER TABLE history ADD COLUMN current_page INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE history ADD COLUMN total_page INTEGER NOT NULL DEFAULT 0;
+
+-- Recreate historyView to include new columns
+DROP VIEW IF EXISTS historyView;
+
 CREATE VIEW historyView AS
 SELECT
     history._id AS id,
@@ -27,44 +34,3 @@ JOIN (
     GROUP BY chapters.manga_id
 ) AS max_last_read
 ON chapters.manga_id = max_last_read.manga_id;
-
-history:
-SELECT
-id,
-mangaId,
-chapterId,
-title,
-thumbnailUrl,
-source,
-favorite,
-cover_last_modified,
-chapterNumber,
-readAt,
-readDuration,
-currentPage,
-totalPage
-FROM historyView
-WHERE historyView.readAt > 0
-AND maxReadAtChapterId = historyView.chapterId
-AND lower(historyView.title) LIKE ('%' || :query || '%')
-ORDER BY readAt DESC;
-
-getLatestHistory:
-SELECT
-id,
-mangaId,
-chapterId,
-title,
-thumbnailUrl,
-source,
-favorite,
-cover_last_modified,
-chapterNumber,
-readAt,
-readDuration,
-currentPage,
-totalPage
-FROM historyView
-WHERE historyView.readAt > 0
-ORDER BY readAt DESC
-LIMIT 1;

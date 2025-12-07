@@ -145,8 +145,11 @@ fun HistoryWidget(
                                         addCategory(history.id.toString())
 
                                     }
-                                    UpdatesMangaCover(
+                                    UpdatesMangaCoverWithProgress(
                                         cover = cover,
+                                        currentPage = history.currentPage,
+                                        totalPage = history.totalPage,
+                                        contentColor = contentColor,
                                         modifier = GlanceModifier.size(itemWidth, itemHeight).clickable(actionStartActivity(intent)).cornerRadius(itemWidth/20),
                                     )
                                 }

@@ -11,11 +11,15 @@ object HistoryMapper {
         chapterId: Long,
         readAt: Date?,
         readDuration: Long,
+        currentPage: Long,
+        totalPage: Long,
     ): History = History(
         id = id,
         chapterId = chapterId,
         readAt = readAt,
         readDuration = readDuration,
+        currentPage = currentPage,
+        totalPage = totalPage,
     )
 
     fun mapHistoryWithRelations(
@@ -30,6 +34,8 @@ object HistoryMapper {
         chapterNumber: Double,
         readAt: Date?,
         readDuration: Long,
+        currentPage: Long,
+        totalPage: Long,
     ): HistoryWithRelations = HistoryWithRelations(
         id = historyId,
         chapterId = chapterId,
@@ -45,5 +51,7 @@ object HistoryMapper {
             url = thumbnailUrl,
             lastModified = coverLastModified,
         ),
+        currentPage = currentPage,
+        totalPage = totalPage,
     )
 }

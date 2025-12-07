@@ -88,7 +88,7 @@ fun UpdatesMangaCoverWithProgress(
                 
                 // Linear progress bar
                 LinearProgressIndicator(
-                    progress = if (totalPage > 0) currentPage.toFloat() / totalPage.toFloat() else 0f,
+                    progress = (currentPage.toFloat() / totalPage.toFloat()).coerceIn(0f, 1f),
                     color = contentColor,
                     modifier = GlanceModifier.fillMaxWidth(),
                 )

@@ -191,7 +191,23 @@ data object LibraryTab : Tab {
                         hasActiveFilters = state.hasActiveFilters,
                         showPageTabs = state.showCategoryTabs || !state.searchQuery.isNullOrEmpty(),
                         onChangeCurrentPage = screenModel::updateActiveCategoryIndex,
-                        onClickManga = { navigator.push(MangaScreen(it)) },
+                        onClickManga = { mangaId ->
+                            // Check if this is a group (negative ID means group)
+                            if (mangaId < 0) {
+                                val groupId = -mangaId
+                                val group = state.libraryData.groups[groupId]
+                                if (group != null) {
+                                    navigator.push(
+                                        eu.kanade.tachiyomi.ui.mangagroup.MangaGroupScreen(
+                                            groupId = groupId,
+                                            groupName = group.group.name,
+                                        ),
+                                    )
+                                }
+                            } else {
+                                navigator.push(MangaScreen(mangaId))
+                            }
+                        },
                         onContinueReadingClicked = { it: LibraryManga ->
                             scope.launchIO {
                                 val chapter = screenModel.getNextUnreadChapter(it.manga)

@@ -75,6 +75,7 @@ import uy.kohesive.injekt.api.get
 import kotlin.random.Random
 
 class LibraryScreenModel(
+    private val groupId: Long? = null,
     private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
     private val getTracksPerManga: GetTracksPerManga = Injekt.get(),
@@ -110,11 +111,27 @@ class LibraryScreenModel(
                 getFavoritesFlow(),
                 combine(getTracksPerManga.subscribe(), getTrackingFiltersFlow(), ::Pair),
                 getLibraryItemPreferencesFlow(),
-            ) { searchQuery, categories, favorites, (tracksMap, trackingFilters), itemPreferences ->
+                if (groupId == null) getMangaGroups.subscribe() else flowOf(emptyList()),
+            ) { searchQuery, categories, favorites, (tracksMap, trackingFilters), itemPreferences, allGroups ->
                 val showSystemCategory = favorites.any { it.libraryManga.categories.contains(0) }
                 val filteredFavorites = favorites
+                    .let { if (groupId != null) it.filter { item -> item.libraryManga.groupId == groupId } else it }
                     .applyFilters(tracksMap, trackingFilters, itemPreferences)
                     .let { if (searchQuery == null) it else it.filter { m -> m.matches(searchQuery) } }
+
+                // Create LibraryGroup objects for groups
+                val groupsMap = if (groupId == null) {
+                    allGroups.associateBy({ it.id }) { group ->
+                        val mangaInGroup = favorites.filter { it.libraryManga.groupId == group.id }
+                        LibraryGroup(
+                            group = group,
+                            mangaList = mangaInGroup,
+                            categories = emptyList(), // Categories not needed for display
+                        )
+                    }
+                } else {
+                    emptyMap()
+                }
 
                 LibraryData(
                     isInitialized = true,
@@ -123,6 +140,7 @@ class LibraryScreenModel(
                     favorites = filteredFavorites,
                     tracksMap = tracksMap,
                     loggedInTrackerIds = trackingFilters.keys,
+                    groups = groupsMap,
                 )
             }
                 .distinctUntilChanged()
@@ -805,6 +823,7 @@ class LibraryScreenModel(
         val favorites: List<LibraryItem> = emptyList(),
         val tracksMap: Map</* Manga */ Long, List<Track>> = emptyMap(),
         val loggedInTrackerIds: Set<Long> = emptySet(),
+        val groups: Map<Long, LibraryGroup> = emptyMap(),
     ) {
         val favoritesById by lazy { favorites.associateBy { it.id } }
     }
@@ -846,7 +865,51 @@ class LibraryScreenModel(
         }
 
         fun getItemsForCategory(category: Category): List<LibraryItem> {
-            return groupedFavorites[category].orEmpty().mapNotNull { libraryData.favoritesById[it] }
+            val items = groupedFavorites[category].orEmpty().mapNotNull { libraryData.favoritesById[it] }
+            
+            // If no groups or in group detail view, return items as-is
+            if (libraryData.groups.isEmpty()) {
+                return items
+            }
+            
+            // Collapse grouped manga into LibraryGroup representations
+            val groupedItems = mutableListOf<LibraryItem>()
+            val processedGroupIds = mutableSetOf<Long>()
+            
+            items.forEach { item ->
+                val groupId = item.libraryManga.groupId
+                if (groupId != null && groupId !in processedGroupIds) {
+                    // This manga is in a group, add the group representation
+                    val group = libraryData.groups[groupId]
+                    if (group != null) {
+                        processedGroupIds.add(groupId)
+                        // Create a LibraryItem that represents the group
+                        // Use the first manga in the group as the base
+                        val firstManga = group.mangaList.firstOrNull()
+                        if (firstManga != null) {
+                            // Create a special LibraryItem with negative ID to represent the group
+                            groupedItems.add(
+                                firstManga.copy(
+                                    libraryManga = firstManga.libraryManga.copy(
+                                        manga = firstManga.libraryManga.manga.copy(
+                                            id = -groupId,
+                                            title = group.group.name,
+                                            thumbnailUrl = group.group.coverUrl ?: firstManga.libraryManga.manga.thumbnailUrl,
+                                        ),
+                                    ),
+                                    unreadCount = group.unreadCount,
+                                    downloadCount = group.downloadCount,
+                                ),
+                            )
+                        }
+                    }
+                } else if (groupId == null) {
+                    // This manga is not in any group, add it normally
+                    groupedItems.add(item)
+                }
+            }
+            
+            return groupedItems
         }
 
         fun getItemCountForCategory(category: Category): Int? {

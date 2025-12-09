@@ -60,6 +60,12 @@ import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.applyFilter
+import tachiyomi.domain.mangagroup.interactor.CreateMangaGroup
+import tachiyomi.domain.mangagroup.interactor.DeleteMangaGroup
+import tachiyomi.domain.mangagroup.interactor.GetMangaGroups
+import tachiyomi.domain.mangagroup.interactor.ManageMangaInGroup
+import tachiyomi.domain.mangagroup.interactor.SetMangaGroupCategories
+import tachiyomi.domain.mangagroup.interactor.UpdateMangaGroup
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracksPerManga
 import tachiyomi.domain.track.model.Track
@@ -85,6 +91,12 @@ class LibraryScreenModel(
     private val downloadManager: DownloadManager = Injekt.get(),
     private val downloadCache: DownloadCache = Injekt.get(),
     private val trackerManager: TrackerManager = Injekt.get(),
+    private val getMangaGroups: GetMangaGroups = Injekt.get(),
+    private val createMangaGroup: CreateMangaGroup = Injekt.get(),
+    private val updateMangaGroup: UpdateMangaGroup = Injekt.get(),
+    private val deleteMangaGroup: DeleteMangaGroup = Injekt.get(),
+    private val manageMangaInGroup: ManageMangaInGroup = Injekt.get(),
+    private val setMangaGroupCategories: SetMangaGroupCategories = Injekt.get(),
 ) : StateScreenModel<LibraryScreenModel.State>(State()) {
 
     init {
@@ -700,8 +712,61 @@ class LibraryScreenModel(
         mutableState.update { it.copy(dialog = Dialog.DeleteManga(state.value.selectedManga)) }
     }
 
+    fun openCreateGroupDialog() {
+        screenModelScope.launchIO {
+            val groups = getMangaGroups.await()
+            val existingNames = groups.map { it.name }.toImmutableList()
+            mutableState.update { it.copy(dialog = Dialog.CreateGroup(existingNames)) }
+        }
+    }
+
     fun closeDialog() {
         mutableState.update { it.copy(dialog = null) }
+    }
+
+    /**
+     * Creates a new manga group from the selected manga.
+     */
+    fun createGroup(name: String) {
+        val selectedManga = state.value.selection.toList()
+        if (selectedManga.isEmpty()) return
+
+        screenModelScope.launchIO {
+            // Use the first manga's cover as the default group cover
+            val firstManga = state.value.libraryData.favoritesById[selectedManga.first()]
+            val coverUrl = firstManga?.libraryManga?.manga?.thumbnailUrl
+
+            val groupId = createMangaGroup.await(name, selectedManga, coverUrl)
+
+            // Set group categories to match the first manga's categories
+            val categories = firstManga?.libraryManga?.categories.orEmpty()
+            if (categories.isNotEmpty()) {
+                setMangaGroupCategories.await(groupId, categories)
+            }
+        }
+    }
+
+    /**
+     * Removes selected manga from their groups.
+     */
+    fun removeFromGroup() {
+        val selectedManga = state.value.selection.toList()
+        if (selectedManga.isEmpty()) return
+
+        screenModelScope.launchIO {
+            selectedManga.forEach { mangaId ->
+                manageMangaInGroup.removeFromGroup(mangaId)
+            }
+        }
+    }
+
+    /**
+     * Deletes a group without deleting the manga.
+     */
+    fun deleteGroup(groupId: Long) {
+        screenModelScope.launchIO {
+            deleteMangaGroup.await(groupId)
+        }
     }
 
     sealed interface Dialog {
@@ -711,6 +776,8 @@ class LibraryScreenModel(
             val initialSelection: ImmutableList<CheckboxState<Category>>,
         ) : Dialog
         data class DeleteManga(val manga: List<Manga>) : Dialog
+        data class CreateGroup(val existingGroupNames: ImmutableList<String>) : Dialog
+        data class DeleteGroup(val groupId: Long, val groupName: String) : Dialog
     }
 
     @Immutable

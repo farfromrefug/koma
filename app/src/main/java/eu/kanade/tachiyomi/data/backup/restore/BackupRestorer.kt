@@ -7,10 +7,12 @@ import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
+import eu.kanade.tachiyomi.data.backup.models.BackupMangaGroup
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import eu.kanade.tachiyomi.data.backup.restore.restorers.CategoriesRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.ExtensionRepoRestorer
+import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaGroupRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
@@ -34,6 +36,7 @@ class BackupRestorer(
     private val preferenceRestorer: PreferenceRestorer = PreferenceRestorer(context),
     private val extensionRepoRestorer: ExtensionRepoRestorer = ExtensionRepoRestorer(),
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
+    private val mangaGroupRestorer: MangaGroupRestorer = MangaGroupRestorer(),
 ) {
 
     private var restoreAmount = 0
@@ -44,6 +47,11 @@ class BackupRestorer(
      * Mapping of source ID to source name from backup data
      */
     private var sourceMapping: Map<Long, String> = emptyMap()
+    
+    /**
+     * Mapping of old manga IDs to new manga IDs after restoration
+     */
+    private val mangaIdMapping = mutableMapOf<Long, Long>()
 
     suspend fun restore(uri: Uri, options: RestoreOptions) {
         val startTime = System.currentTimeMillis()
@@ -71,7 +79,7 @@ class BackupRestorer(
         sourceMapping = backupMaps.associate { it.sourceId to it.name }
 
         if (options.libraryEntries) {
-            restoreAmount += backup.backupManga.size
+            restoreAmount += backup.backupManga.size + backup.backupMangaGroups.size
         }
         if (options.categories) {
             restoreAmount += 1
@@ -98,6 +106,7 @@ class BackupRestorer(
             }
             if (options.libraryEntries) {
                 restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
+                restoreMangaGroups(backup.backupMangaGroups, if (options.categories) backup.backupCategories else emptyList())
             }
             if (options.extensionRepoSettings) {
                 restoreExtensionRepos(backup.backupExtensionRepo)
@@ -129,7 +138,9 @@ class BackupRestorer(
                 ensureActive()
 
                 try {
-                    mangaRestorer.restore(it, backupCategories)
+                    val restoredMangaId = mangaRestorer.restore(it, backupCategories)
+                    // Store mapping for group restoration
+                    mangaIdMapping[it.source to it.url.hashCode().toLong()] = restoredMangaId
                 } catch (e: Exception) {
                     val sourceName = sourceMapping[it.source] ?: it.source.toString()
                     errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
@@ -138,6 +149,29 @@ class BackupRestorer(
                 restoreProgress += 1
                 notifier.showRestoreProgress(it.title, restoreProgress, restoreAmount, isSync)
             }
+    }
+
+    private fun CoroutineScope.restoreMangaGroups(
+        backupMangaGroups: List<BackupMangaGroup>,
+        backupCategories: List<BackupCategory>,
+    ) = launch {
+        backupMangaGroups.forEach { backupGroup ->
+            ensureActive()
+
+            try {
+                mangaGroupRestorer.restore(backupGroup, backupCategories, mangaIdMapping)
+            } catch (e: Exception) {
+                errors.add(Date() to "Group ${backupGroup.name}: ${e.message}")
+            }
+
+            restoreProgress += 1
+            notifier.showRestoreProgress(
+                "Group: ${backupGroup.name}",
+                restoreProgress,
+                restoreAmount,
+                isSync,
+            )
+        }
     }
 
     private fun CoroutineScope.restoreAppPreferences(

@@ -33,6 +33,8 @@ import eu.kanade.presentation.library.LibrarySettingsDialog
 import eu.kanade.presentation.library.components.LibraryContent
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.manga.components.LibraryBottomActionMenu
+import eu.kanade.presentation.mangagroup.components.MangaGroupCreateDialog
+import eu.kanade.presentation.mangagroup.components.MangaGroupDeleteDialog
 import eu.kanade.presentation.more.onboarding.GETTING_STARTED_URL
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
@@ -155,6 +157,8 @@ data object LibraryTab : Tab {
                         screenModel.clearSelection()
                         navigator.push(MigrationConfigScreen(selection))
                     },
+                    onGroupClicked = screenModel::openCreateGroupDialog
+                        .takeIf { state.selection.size >= 2 },
                 )
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -251,6 +255,25 @@ data object LibraryTab : Tab {
                         screenModel.removeMangas(dialog.manga, deleteManga, deleteChapter)
                         screenModel.clearSelection()
                     },
+                )
+            }
+            is LibraryScreenModel.Dialog.CreateGroup -> {
+                MangaGroupCreateDialog(
+                    onDismissRequest = onDismissRequest,
+                    onCreate = { name ->
+                        screenModel.createGroup(name)
+                        screenModel.clearSelection()
+                    },
+                    existingGroupNames = dialog.existingGroupNames,
+                )
+            }
+            is LibraryScreenModel.Dialog.DeleteGroup -> {
+                MangaGroupDeleteDialog(
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = {
+                        screenModel.deleteGroup(dialog.groupId)
+                    },
+                    groupName = dialog.groupName,
                 )
             }
             null -> {}

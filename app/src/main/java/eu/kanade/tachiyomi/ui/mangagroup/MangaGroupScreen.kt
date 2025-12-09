@@ -75,7 +75,10 @@ data class MangaGroupScreen(
                     onClickSelectAll = screenModel::selectAll,
                     onClickInvertSelection = screenModel::invertSelection,
                     onClickFilter = screenModel::showSettingsDialog,
-                    onClickRefresh = {},
+                    onClickRefresh = {
+                        // Open edit group dialog
+                        screenModel.openEditGroupDialog(groupId)
+                    },
                     onClickGlobalUpdate = {},
                     onClickOpenRandomManga = {},
                     searchQuery = state.searchQuery,
@@ -97,8 +100,11 @@ data class MangaGroupScreen(
                         screenModel.clearSelection()
                         navigator.push(MigrationConfigScreen(selection))
                     },
-                    // No group creation option in group detail view
-                    onGroupClicked = null,
+                    // Special group actions
+                    onGroupClicked = {
+                        screenModel.removeFromGroup()
+                        screenModel.clearSelection()
+                    }.takeIf { state.selection.isNotEmpty() },
                 )
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -172,6 +178,20 @@ data class MangaGroupScreen(
                         screenModel.removeMangas(dialog.manga, deleteManga, deleteChapter)
                         screenModel.clearSelection()
                     },
+                )
+            }
+            is LibraryScreenModel.Dialog.EditGroup -> {
+                eu.kanade.presentation.mangagroup.components.MangaGroupEditDialog(
+                    onDismissRequest = onDismissRequest,
+                    onEdit = { newName ->
+                        screenModel.renameGroup(dialog.groupId, newName)
+                    },
+                    onDelete = {
+                        screenModel.deleteGroup(dialog.groupId)
+                        navigator.pop() // Go back to library after deleting group
+                    },
+                    currentName = dialog.currentName,
+                    existingGroupNames = dialog.existingGroupNames,
                 )
             }
             else -> {}

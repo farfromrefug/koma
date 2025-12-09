@@ -787,6 +787,40 @@ class LibraryScreenModel(
         }
     }
 
+    /**
+     * Opens the edit group dialog.
+     */
+    fun openEditGroupDialog(groupId: Long) {
+        screenModelScope.launchIO {
+            val group = getMangaGroups.awaitOne(groupId) ?: return@launchIO
+            val groups = getMangaGroups.await()
+            val existingNames = groups.filter { it.id != groupId }.map { it.name }.toImmutableList()
+            mutableState.update { 
+                it.copy(
+                    dialog = Dialog.EditGroup(
+                        groupId = groupId,
+                        currentName = group.name,
+                        existingGroupNames = existingNames,
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Renames a group.
+     */
+    fun renameGroup(groupId: Long, newName: String) {
+        screenModelScope.launchIO {
+            updateMangaGroup.await(
+                tachiyomi.domain.mangagroup.model.MangaGroupUpdate(
+                    id = groupId,
+                    name = newName,
+                ),
+            )
+        }
+    }
+
     sealed interface Dialog {
         data object SettingsSheet : Dialog
         data class ChangeCategory(
@@ -796,6 +830,11 @@ class LibraryScreenModel(
         data class DeleteManga(val manga: List<Manga>) : Dialog
         data class CreateGroup(val existingGroupNames: ImmutableList<String>) : Dialog
         data class DeleteGroup(val groupId: Long, val groupName: String) : Dialog
+        data class EditGroup(
+            val groupId: Long,
+            val currentName: String,
+            val existingGroupNames: ImmutableList<String>,
+        ) : Dialog
     }
 
     @Immutable
@@ -888,6 +927,7 @@ class LibraryScreenModel(
                         val firstManga = group.mangaList.firstOrNull()
                         if (firstManga != null) {
                             // Create a special LibraryItem with negative ID to represent the group
+                            // Store manga count in a special field (we'll use totalChapters temporarily)
                             groupedItems.add(
                                 firstManga.copy(
                                     libraryManga = firstManga.libraryManga.copy(
@@ -896,6 +936,8 @@ class LibraryScreenModel(
                                             title = group.group.name,
                                             thumbnailUrl = group.group.coverUrl ?: firstManga.libraryManga.manga.thumbnailUrl,
                                         ),
+                                        // Store manga count in totalChapters field for the badge
+                                        totalChapters = group.mangaList.size.toLong(),
                                     ),
                                     unreadCount = group.unreadCount,
                                     downloadCount = group.downloadCount,

@@ -43,7 +43,7 @@ fun LibraryToolbar(
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
     scrollBehavior: TopAppBarScrollBehavior?,
-    onToggleIncognito: () -> Unit,
+    onToggleIncognito: (() -> Unit)? = null,
     navigationIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     navigateUp: (() -> Unit)? = null,
 ) = when {
@@ -75,7 +75,7 @@ private fun LibraryRegularToolbar(
     hasFilters: Boolean,
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
-    onToggleIncognito: () -> Unit,
+    onToggleIncognito: (() -> Unit)? = null,
     onClickFilter: () -> Unit,
     onClickRefresh: () -> Unit,
     onClickGlobalUpdate: () -> Unit,
@@ -118,12 +118,13 @@ private fun LibraryRegularToolbar(
                         iconTint = filterTint,
                         onClick = onClickFilter,
                     ),
-                    AppBar.Action(
-                        title = stringResource(MR.strings.pref_incognito_mode),
-                        icon = ImageVector.vectorResource(R.drawable.ic_glasses_24dp),
-                        iconTint = filterTint,
-                        onClick = onToggleIncognito,
-                    ),
+                        AppBar.Action(
+                            title = stringResource(MR.strings.pref_incognito_mode),
+                            icon = ImageVector.vectorResource(R.drawable.ic_glasses_24dp),
+                            iconTint = filterTint,
+                            onClick = onToggleIncognito ?: {},
+                            enabled = onToggleIncognito != null
+                        ),
                     AppBar.OverflowAction(
                         title = stringResource(MR.strings.action_update_library),
                         onClick = onClickGlobalUpdate,

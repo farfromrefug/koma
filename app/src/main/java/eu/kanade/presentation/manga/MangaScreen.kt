@@ -196,6 +196,7 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
+            onShowChapterInfo = onShowChapterInfo
         )
     } else if (!isTabletUi) {
         MangaScreenSmallImpl(
@@ -237,6 +238,7 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
+            onShowChapterInfo = onShowChapterInfo
         )
     } else  {
         MangaScreenLargeImpl(
@@ -278,6 +280,7 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
+            onShowChapterInfo = onShowChapterInfo
         )
     }
 }
@@ -981,6 +984,7 @@ private fun MangaScreenCompactImpl(
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
     showFab: Boolean,
+    onShowChapterInfo: ((Chapter) -> Unit)? = null,
 ) {
     val chapterListState = rememberLazyListState()
 
@@ -1255,7 +1259,6 @@ private fun SharedMangaBottomActionMenu(
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onMultiDeleteClicked: (List<Chapter>) -> Unit,
     onSetChapterCoverAsMangaCover: ((Chapter) -> Unit)? = null,
-    onShowChapterInfo: ((Chapter) -> Unit)? = null,
     onShowChapterInfo: ((Chapter) -> Unit)? = null,
     fillFraction: Float,
     modifier: Modifier = Modifier,

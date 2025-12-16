@@ -180,7 +180,7 @@ dependencies {
     implementation(projects.domain)
     implementation(projects.presentationCore)
     implementation(projects.presentationWidget)
-//    implementation(projects.telemetry)
+    implementation(projects.telemetry)
 
     // Compose
     implementation(compose.activity)

@@ -98,7 +98,9 @@ jobs:
           cache-disabled: true
 
       - name: Build
-        run: ./gradlew assembleFoss -Penable-updater
+        run: |
+          ./gradlew assembleFoss -Penable-updater
+          ls -la app/build/outputs/apk/foss
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
@@ -114,7 +116,7 @@ jobs:
       - name: Rename APK
         run: |
           set -e
-
+          ls -la app/build/outputs/apk/foss
           mv app/build/outputs/apk/foss/app-universal-foss-unsigned-signed.apk koma-${{ needs.get_tag.outputs.tag }}-foss.apk
 
       - name: Upload APK

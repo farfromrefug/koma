@@ -125,7 +125,7 @@ internal class ExtensionApi {
                     isNsfw = it.nsfw == 1,
                     sources = it.sources?.map(extensionSourceMapper).orEmpty(),
                     apkName = it.apk,
-                    iconUrl = "$repoUrl/icon/${it.pkg}.png",
+                    iconUrl = it.iconUrl ?: "$repoUrl/icon/${it.pkg}.png",
                     repoUrl = repoUrl,
                 )
             }
@@ -148,6 +148,7 @@ private data class ExtensionJsonObject(
     val lang: String,
     val code: Long,
     val version: String,
+    val iconUrl: String?,
     val nsfw: Int,
     val sources: List<ExtensionSourceJsonObject>?,
 )

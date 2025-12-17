@@ -153,11 +153,12 @@ class PagerPageHolder(
             val (source, isAnimated, background) = withIOContext {
                 val source = streamFn().use { process(item, Buffer().readFrom(it)) }
                 val isAnimated = ImageUtil.isAnimatedAndSupported(source)
-                val background = if (!isAnimated && viewer.config.automaticBackground) {
-                    ImageUtil.chooseBackground(context, source.peek().inputStream())
-                } else {
-                    null
-                }
+                val background = null
+//                val background = if (!isAnimated && viewer.config.automaticBackground) {
+//                    ImageUtil.chooseBackground(context, source.peek().inputStream())
+//                } else {
+//                    null
+//                }
                 Triple(source, isAnimated, background)
             }
             withUIContext {

@@ -1,24 +1,17 @@
 package tachiyomi.core.common.util.system
 
-import android.content.Context
-import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
-import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
-import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import androidx.annotation.ColorInt
 import androidx.core.graphics.alpha
 import androidx.core.graphics.applyCanvas
 import androidx.core.graphics.blue
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.get
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import com.hippo.unifile.UniFile
@@ -26,8 +19,15 @@ import eu.kanade.tachiyomi.util.system.GLUtil
 import logcat.LogPriority
 import okio.Buffer
 import okio.BufferedSource
-import tachiyomi.decoder.Format
-import tachiyomi.decoder.ImageDecoder
+import okio.buffer
+import okio.source
+import okio.ByteString.Companion.encodeUtf8
+import coil3.decode.DecodeUtils
+import coil3.gif.isAnimatedHeif
+import coil3.gif.isAnimatedWebP
+import coil3.gif.isGif
+import coil3.gif.isHeif
+import coil3.gif.isWebP
 import java.io.InputStream
 import java.util.Locale
 import kotlin.math.abs
@@ -35,6 +35,16 @@ import kotlin.math.max
 import kotlin.math.min
 
 object ImageUtil {
+
+    enum class ImageType(val mime: String, val extension: String) {
+        AVIF("image/avif", "avif"),
+        GIF("image/gif", "gif"),
+        HEIF("image/heif", "heif"),
+        JPEG("image/jpeg", "jpg"),
+        JXL("image/jxl", "jxl"),
+        PNG("image/png", "png"),
+        WEBP("image/webp", "webp"),
+    }
 
     fun isImage(name: String?, openStream: (() -> InputStream)? = null): Boolean {
         if (name == null) return false
@@ -49,14 +59,15 @@ object ImageUtil {
 
     fun findImageType(stream: InputStream): ImageType? {
         return try {
-            when (getImageType(stream)?.format) {
-                Format.Avif -> ImageType.AVIF
-                Format.Gif -> ImageType.GIF
-                Format.Heif -> ImageType.HEIF
-                Format.Jpeg -> ImageType.JPEG
-                Format.Jxl -> ImageType.JXL
-                Format.Png -> ImageType.PNG
-                Format.Webp -> ImageType.WEBP
+//            getImageType(stream)
+            when (getImageType(stream)) {
+                BufferImageType.AVIF -> ImageType.AVIF
+                BufferImageType.GIF -> ImageType.GIF
+                BufferImageType.HEIF -> ImageType.HEIF
+                BufferImageType.JPEG -> ImageType.JPEG
+                BufferImageType.JXL -> ImageType.JXL
+                BufferImageType.PNG -> ImageType.PNG
+                BufferImageType.WEBP -> ImageType.WEBP
                 else -> null
             }
         } catch (e: Exception) {
@@ -73,12 +84,12 @@ object ImageUtil {
         return try {
             val type = getImageType(source.peek().inputStream()) ?: return false
             // https://coil-kt.github.io/coil/getting_started/#supported-image-formats
-            when (type.format) {
-                Format.Gif -> true
+            when (type) {
+                BufferImageType.GIF -> true
                 // Animated WebP on Android 9+
-                Format.Webp -> type.isAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                BufferImageType.ANIMATED_WEBP -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                 // Animated Heif on Android 11+
-                Format.Heif -> type.isAnimated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                BufferImageType.ANIMATED_HEIF -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
                 else -> false
             }
         } catch (e: Exception) {
@@ -86,32 +97,128 @@ object ImageUtil {
         }
     }
 
-    private fun getImageType(stream: InputStream): tachiyomi.decoder.ImageType? {
-        val bytes = ByteArray(32)
-
-        val length = if (stream.markSupported()) {
-            stream.mark(bytes.size)
-            stream.read(bytes, 0, bytes.size).also { stream.reset() }
-        } else {
-            stream.read(bytes, 0, bytes.size)
-        }
-
-        if (length == -1) {
-            return null
-        }
-
-        return ImageDecoder.findType(bytes)
+    enum class BufferImageType {
+        JPEG,
+        PNG,
+        WEBP,
+        ANIMATED_WEBP,
+        GIF,
+        HEIF,
+        HEIC,
+        ANIMATED_HEIF,
+        AVIF,
+        JXL,
+        UNKNOWN
     }
 
-    enum class ImageType(val mime: String, val extension: String) {
-        AVIF("image/avif", "avif"),
-        GIF("image/gif", "gif"),
-        HEIF("image/heif", "heif"),
-        JPEG("image/jpeg", "jpg"),
-        JXL("image/jxl", "jxl"),
-        PNG("image/png", "png"),
-        WEBP("image/webp", "webp"),
+    // Image format magic bytes/headers
+    private val JPEG_HEADER = byteArrayOf(0xFF. toByte(), 0xD8.toByte(), 0xFF.toByte())
+    private val PNG_HEADER = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+    // AVIF uses ISOBMFF format with 'ftyp' box
+    private val AVIF_FTYP = "ftyp". encodeUtf8()
+    private val AVIF_AVIF = "avif".encodeUtf8()
+    private val AVIF_AVIS = "avis".encodeUtf8()
+
+    // JXL (JPEG XL) magic bytes
+    private val JXL_HEADER = byteArrayOf(0xFF.toByte(), 0x0A.toByte())
+    private val JXL_CONTAINER = byteArrayOf(0x00, 0x00, 0x00, 0x0C, 0x4A, 0x58, 0x4C, 0x20, 0x0D, 0x0A, 0x87. toByte(), 0x0A)
+
+    /**
+     * Detect image type from a BufferedSource without consuming it.
+     */
+    fun detectImageType(source: BufferedSource): BufferImageType {
+        return when {
+            // Check animated formats before static ones
+            DecodeUtils.isAnimatedWebP(source) -> BufferImageType.ANIMATED_WEBP
+            DecodeUtils.isAnimatedHeif(source) -> BufferImageType.ANIMATED_HEIF
+
+            // Check static formats
+            DecodeUtils.isWebP(source) -> BufferImageType.WEBP
+            DecodeUtils.isHeif(source) -> {
+                // Distinguish between HEIF and HEIC based on brand
+                if (source.request(12) && source.rangeEquals(8, "heic".encodeUtf8())) {
+                    BufferImageType. HEIC
+                } else {
+                    BufferImageType.HEIF
+                }
+            }
+            DecodeUtils.isGif(source) -> BufferImageType.GIF
+            isJpeg(source) -> BufferImageType.JPEG
+            isPng(source) -> BufferImageType.PNG
+            isAvif(source) -> BufferImageType.AVIF
+            isJxl(source) -> BufferImageType.JXL
+            else -> BufferImageType.UNKNOWN
+        }
     }
+
+    /**
+     * Check if source contains a JPEG image.  The source is not consumed.
+     */
+    private fun isJpeg(source:  BufferedSource): Boolean {
+        return source.request(3) &&
+            source.buffer[0] == JPEG_HEADER[0] &&
+            source.buffer[1] == JPEG_HEADER[1] &&
+            source.buffer[2] == JPEG_HEADER[2]
+    }
+//    private fun isGif(source: BufferedSource): Boolean {
+//        return source.rangeEquals(0, GIF_HEADER_89A) ||
+//            source.rangeEquals(0, GIF_HEADER_87A)
+//    }
+    /**
+     * Check if source contains a PNG image. The source is not consumed.
+     */
+    private fun isPng(source: BufferedSource): Boolean {
+        if (!source.request(8)) return false
+        for (i in PNG_HEADER.indices) {
+            if (source.buffer[i. toLong()] != PNG_HEADER[i]) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Check if source contains an AVIF image. The source is not consumed.
+     * AVIF uses ISO Base Media File Format (similar to HEIF) but with 'avif' or 'avis' brand.
+     */
+    private fun isAvif(source: BufferedSource): Boolean {
+        return source.rangeEquals(4, AVIF_FTYP) &&
+            (source.rangeEquals(8, AVIF_AVIF) || source.rangeEquals(8, AVIF_AVIS))
+    }
+
+    /**
+     * Check if source contains a JXL (JPEG XL) image. The source is not consumed.
+     * JXL has two possible signatures: codestream format and container format.
+     */
+    private fun isJxl(source: BufferedSource): Boolean {
+        // Check codestream format (bare codestream)
+        if (source.request(2) &&
+            source.buffer[0] == JXL_HEADER[0] &&
+            source.buffer[1] == JXL_HEADER[1]) {
+            return true
+        }
+
+        // Check container format (ISOBMFF-based)
+        if (source.request(12)) {
+            var match = true
+            for (i in JXL_CONTAINER.indices) {
+                if (source. buffer[i.toLong()] != JXL_CONTAINER[i]) {
+                    match = false
+                    break
+                }
+            }
+            if (match) return true
+        }
+
+        return false
+    }
+
+    private fun getImageType(stream: InputStream): BufferImageType? {
+        val okioSource = stream.source().buffer()
+        return detectImageType(okioSource)
+    }
+
 
     /**
      * Check whether the image is wide (which we consider a double-page spread).
@@ -330,220 +437,220 @@ object ImageUtil {
     /**
      * Algorithm for determining what background to accompany a comic/manga page
      */
-    fun chooseBackground(context: Context, imageStream: InputStream): Drawable {
-        val decoder = ImageDecoder.newInstance(imageStream)
-        val image = decoder?.decode()
-        decoder?.recycle()
-
-        val whiteColor = Color.WHITE
-        if (image == null) return ColorDrawable(whiteColor)
-        if (image.width < 50 || image.height < 50) {
-            return ColorDrawable(whiteColor)
-        }
-
-        val top = 5
-        val bot = image.height - 5
-        val left = (image.width * 0.0275).toInt()
-        val right = image.width - left
-        val midX = image.width / 2
-        val midY = image.height / 2
-        val offsetX = (image.width * 0.01).toInt()
-        val leftOffsetX = left - offsetX
-        val rightOffsetX = right + offsetX
-
-        val topLeftPixel = image[left, top]
-        val topRightPixel = image[right, top]
-        val midLeftPixel = image[left, midY]
-        val midRightPixel = image[right, midY]
-        val topCenterPixel = image[midX, top]
-        val botLeftPixel = image[left, bot]
-        val bottomCenterPixel = image[midX, bot]
-        val botRightPixel = image[right, bot]
-
-        val topLeftIsDark = topLeftPixel.isDark()
-        val topRightIsDark = topRightPixel.isDark()
-        val midLeftIsDark = midLeftPixel.isDark()
-        val midRightIsDark = midRightPixel.isDark()
-        val topMidIsDark = topCenterPixel.isDark()
-        val botLeftIsDark = botLeftPixel.isDark()
-        val botRightIsDark = botRightPixel.isDark()
-
-        var darkBG =
-            (topLeftIsDark && (botLeftIsDark || botRightIsDark || topRightIsDark || midLeftIsDark || topMidIsDark)) ||
-                (topRightIsDark && (botRightIsDark || botLeftIsDark || midRightIsDark || topMidIsDark))
-
-        val topAndBotPixels =
-            listOf(topLeftPixel, topCenterPixel, topRightPixel, botRightPixel, bottomCenterPixel, botLeftPixel)
-        val isNotWhiteAndCloseTo = topAndBotPixels.mapIndexed { index, color ->
-            val other = topAndBotPixels[(index + 1) % topAndBotPixels.size]
-            !color.isWhite() && color.isCloseTo(other)
-        }
-        if (isNotWhiteAndCloseTo.all { it }) {
-            return ColorDrawable(topLeftPixel)
-        }
-
-        val cornerPixels = listOf(topLeftPixel, topRightPixel, botLeftPixel, botRightPixel)
-        val numberOfWhiteCorners = cornerPixels.map { cornerPixel -> cornerPixel.isWhite() }
-            .filter { it }
-            .size
-        if (numberOfWhiteCorners > 2) {
-            darkBG = false
-        }
-
-        var blackColor = when {
-            topLeftIsDark -> topLeftPixel
-            topRightIsDark -> topRightPixel
-            botLeftIsDark -> botLeftPixel
-            botRightIsDark -> botRightPixel
-            else -> whiteColor
-        }
-
-        var overallWhitePixels = 0
-        var overallBlackPixels = 0
-        var topBlackStreak = 0
-        var topWhiteStreak = 0
-        var botBlackStreak = 0
-        var botWhiteStreak = 0
-        outer@ for (x in intArrayOf(left, right, leftOffsetX, rightOffsetX)) {
-            var whitePixelsStreak = 0
-            var whitePixels = 0
-            var blackPixelsStreak = 0
-            var blackPixels = 0
-            var blackStreak = false
-            var whiteStreak = false
-            val notOffset = x == left || x == right
-            inner@ for ((index, y) in (0..<image.height step image.height / 25).withIndex()) {
-                val pixel = image[x, y]
-                val pixelOff = image[x + (if (x < image.width / 2) -offsetX else offsetX), y]
-                if (pixel.isWhite()) {
-                    whitePixelsStreak++
-                    whitePixels++
-                    if (notOffset) {
-                        overallWhitePixels++
-                    }
-                    if (whitePixelsStreak > 14) {
-                        whiteStreak = true
-                    }
-                    if (whitePixelsStreak > 6 && whitePixelsStreak >= index - 1) {
-                        topWhiteStreak = whitePixelsStreak
-                    }
-                } else {
-                    whitePixelsStreak = 0
-                    if (pixel.isDark() && pixelOff.isDark()) {
-                        blackPixels++
-                        if (notOffset) {
-                            overallBlackPixels++
-                        }
-                        blackPixelsStreak++
-                        if (blackPixelsStreak >= 14) {
-                            blackStreak = true
-                        }
-                        continue@inner
-                    }
-                }
-                if (blackPixelsStreak > 6 && blackPixelsStreak >= index - 1) {
-                    topBlackStreak = blackPixelsStreak
-                }
-                blackPixelsStreak = 0
-            }
-            if (blackPixelsStreak > 6) {
-                botBlackStreak = blackPixelsStreak
-            } else if (whitePixelsStreak > 6) {
-                botWhiteStreak = whitePixelsStreak
-            }
-            when {
-                blackPixels > 22 -> {
-                    if (x == right || x == rightOffsetX) {
-                        blackColor = when {
-                            topRightIsDark -> topRightPixel
-                            botRightIsDark -> botRightPixel
-                            else -> blackColor
-                        }
-                    }
-                    darkBG = true
-                    overallWhitePixels = 0
-                    break@outer
-                }
-                blackStreak -> {
-                    darkBG = true
-                    if (x == right || x == rightOffsetX) {
-                        blackColor = when {
-                            topRightIsDark -> topRightPixel
-                            botRightIsDark -> botRightPixel
-                            else -> blackColor
-                        }
-                    }
-                    if (blackPixels > 18) {
-                        overallWhitePixels = 0
-                        break@outer
-                    }
-                }
-                whiteStreak || whitePixels > 22 -> darkBG = false
-            }
-        }
-
-        val topIsBlackStreak = topBlackStreak > topWhiteStreak
-        val bottomIsBlackStreak = botBlackStreak > botWhiteStreak
-        if (overallWhitePixels > 9 && overallWhitePixels > overallBlackPixels) {
-            darkBG = false
-        }
-        if (topIsBlackStreak && bottomIsBlackStreak) {
-            darkBG = true
-        }
-
-        val isLandscape = context.resources.configuration?.orientation == Configuration.ORIENTATION_LANDSCAPE
-        if (isLandscape) {
-            return when {
-                darkBG -> ColorDrawable(blackColor)
-                else -> ColorDrawable(whiteColor)
-            }
-        }
-
-        val botCornersIsWhite = botLeftPixel.isWhite() && botRightPixel.isWhite()
-        val topCornersIsWhite = topLeftPixel.isWhite() && topRightPixel.isWhite()
-
-        val topCornersIsDark = topLeftIsDark && topRightIsDark
-        val botCornersIsDark = botLeftIsDark && botRightIsDark
-
-        val topOffsetCornersIsDark = image[leftOffsetX, top].isDark() && image[rightOffsetX, top].isDark()
-        val botOffsetCornersIsDark = image[leftOffsetX, bot].isDark() && image[rightOffsetX, bot].isDark()
-
-        val gradient = when {
-            darkBG && botCornersIsWhite -> {
-                intArrayOf(blackColor, blackColor, whiteColor, whiteColor)
-            }
-            darkBG && topCornersIsWhite -> {
-                intArrayOf(whiteColor, whiteColor, blackColor, blackColor)
-            }
-            darkBG -> {
-                return ColorDrawable(blackColor)
-            }
-            topIsBlackStreak ||
-                (
-                    topCornersIsDark &&
-                        topOffsetCornersIsDark &&
-                        (topMidIsDark || overallBlackPixels > 9)
-                    ) -> {
-                intArrayOf(blackColor, blackColor, whiteColor, whiteColor)
-            }
-            bottomIsBlackStreak ||
-                (
-                    botCornersIsDark &&
-                        botOffsetCornersIsDark &&
-                        (bottomCenterPixel.isDark() || overallBlackPixels > 9)
-                    ) -> {
-                intArrayOf(whiteColor, whiteColor, blackColor, blackColor)
-            }
-            else -> {
-                return ColorDrawable(whiteColor)
-            }
-        }
-
-        return GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            gradient,
-        )
-    }
+//    fun chooseBackground(context: Context, imageStream: InputStream): Drawable {
+//        val decoder = ImageDecoder.newInstance(imageStream)
+//        val image = decoder?.decode()
+//        decoder?.recycle()
+//
+//        val whiteColor = Color.WHITE
+//        if (image == null) return ColorDrawable(whiteColor)
+//        if (image.width < 50 || image.height < 50) {
+//            return ColorDrawable(whiteColor)
+//        }
+//
+//        val top = 5
+//        val bot = image.height - 5
+//        val left = (image.width * 0.0275).toInt()
+//        val right = image.width - left
+//        val midX = image.width / 2
+//        val midY = image.height / 2
+//        val offsetX = (image.width * 0.01).toInt()
+//        val leftOffsetX = left - offsetX
+//        val rightOffsetX = right + offsetX
+//
+//        val topLeftPixel = image[left, top]
+//        val topRightPixel = image[right, top]
+//        val midLeftPixel = image[left, midY]
+//        val midRightPixel = image[right, midY]
+//        val topCenterPixel = image[midX, top]
+//        val botLeftPixel = image[left, bot]
+//        val bottomCenterPixel = image[midX, bot]
+//        val botRightPixel = image[right, bot]
+//
+//        val topLeftIsDark = topLeftPixel.isDark()
+//        val topRightIsDark = topRightPixel.isDark()
+//        val midLeftIsDark = midLeftPixel.isDark()
+//        val midRightIsDark = midRightPixel.isDark()
+//        val topMidIsDark = topCenterPixel.isDark()
+//        val botLeftIsDark = botLeftPixel.isDark()
+//        val botRightIsDark = botRightPixel.isDark()
+//
+//        var darkBG =
+//            (topLeftIsDark && (botLeftIsDark || botRightIsDark || topRightIsDark || midLeftIsDark || topMidIsDark)) ||
+//                (topRightIsDark && (botRightIsDark || botLeftIsDark || midRightIsDark || topMidIsDark))
+//
+//        val topAndBotPixels =
+//            listOf(topLeftPixel, topCenterPixel, topRightPixel, botRightPixel, bottomCenterPixel, botLeftPixel)
+//        val isNotWhiteAndCloseTo = topAndBotPixels.mapIndexed { index, color ->
+//            val other = topAndBotPixels[(index + 1) % topAndBotPixels.size]
+//            !color.isWhite() && color.isCloseTo(other)
+//        }
+//        if (isNotWhiteAndCloseTo.all { it }) {
+//            return ColorDrawable(topLeftPixel)
+//        }
+//
+//        val cornerPixels = listOf(topLeftPixel, topRightPixel, botLeftPixel, botRightPixel)
+//        val numberOfWhiteCorners = cornerPixels.map { cornerPixel -> cornerPixel.isWhite() }
+//            .filter { it }
+//            .size
+//        if (numberOfWhiteCorners > 2) {
+//            darkBG = false
+//        }
+//
+//        var blackColor = when {
+//            topLeftIsDark -> topLeftPixel
+//            topRightIsDark -> topRightPixel
+//            botLeftIsDark -> botLeftPixel
+//            botRightIsDark -> botRightPixel
+//            else -> whiteColor
+//        }
+//
+//        var overallWhitePixels = 0
+//        var overallBlackPixels = 0
+//        var topBlackStreak = 0
+//        var topWhiteStreak = 0
+//        var botBlackStreak = 0
+//        var botWhiteStreak = 0
+//        outer@ for (x in intArrayOf(left, right, leftOffsetX, rightOffsetX)) {
+//            var whitePixelsStreak = 0
+//            var whitePixels = 0
+//            var blackPixelsStreak = 0
+//            var blackPixels = 0
+//            var blackStreak = false
+//            var whiteStreak = false
+//            val notOffset = x == left || x == right
+//            inner@ for ((index, y) in (0..<image.height step image.height / 25).withIndex()) {
+//                val pixel = image[x, y]
+//                val pixelOff = image[x + (if (x < image.width / 2) -offsetX else offsetX), y]
+//                if (pixel.isWhite()) {
+//                    whitePixelsStreak++
+//                    whitePixels++
+//                    if (notOffset) {
+//                        overallWhitePixels++
+//                    }
+//                    if (whitePixelsStreak > 14) {
+//                        whiteStreak = true
+//                    }
+//                    if (whitePixelsStreak > 6 && whitePixelsStreak >= index - 1) {
+//                        topWhiteStreak = whitePixelsStreak
+//                    }
+//                } else {
+//                    whitePixelsStreak = 0
+//                    if (pixel.isDark() && pixelOff.isDark()) {
+//                        blackPixels++
+//                        if (notOffset) {
+//                            overallBlackPixels++
+//                        }
+//                        blackPixelsStreak++
+//                        if (blackPixelsStreak >= 14) {
+//                            blackStreak = true
+//                        }
+//                        continue@inner
+//                    }
+//                }
+//                if (blackPixelsStreak > 6 && blackPixelsStreak >= index - 1) {
+//                    topBlackStreak = blackPixelsStreak
+//                }
+//                blackPixelsStreak = 0
+//            }
+//            if (blackPixelsStreak > 6) {
+//                botBlackStreak = blackPixelsStreak
+//            } else if (whitePixelsStreak > 6) {
+//                botWhiteStreak = whitePixelsStreak
+//            }
+//            when {
+//                blackPixels > 22 -> {
+//                    if (x == right || x == rightOffsetX) {
+//                        blackColor = when {
+//                            topRightIsDark -> topRightPixel
+//                            botRightIsDark -> botRightPixel
+//                            else -> blackColor
+//                        }
+//                    }
+//                    darkBG = true
+//                    overallWhitePixels = 0
+//                    break@outer
+//                }
+//                blackStreak -> {
+//                    darkBG = true
+//                    if (x == right || x == rightOffsetX) {
+//                        blackColor = when {
+//                            topRightIsDark -> topRightPixel
+//                            botRightIsDark -> botRightPixel
+//                            else -> blackColor
+//                        }
+//                    }
+//                    if (blackPixels > 18) {
+//                        overallWhitePixels = 0
+//                        break@outer
+//                    }
+//                }
+//                whiteStreak || whitePixels > 22 -> darkBG = false
+//            }
+//        }
+//
+//        val topIsBlackStreak = topBlackStreak > topWhiteStreak
+//        val bottomIsBlackStreak = botBlackStreak > botWhiteStreak
+//        if (overallWhitePixels > 9 && overallWhitePixels > overallBlackPixels) {
+//            darkBG = false
+//        }
+//        if (topIsBlackStreak && bottomIsBlackStreak) {
+//            darkBG = true
+//        }
+//
+//        val isLandscape = context.resources.configuration?.orientation == Configuration.ORIENTATION_LANDSCAPE
+//        if (isLandscape) {
+//            return when {
+//                darkBG -> ColorDrawable(blackColor)
+//                else -> ColorDrawable(whiteColor)
+//            }
+//        }
+//
+//        val botCornersIsWhite = botLeftPixel.isWhite() && botRightPixel.isWhite()
+//        val topCornersIsWhite = topLeftPixel.isWhite() && topRightPixel.isWhite()
+//
+//        val topCornersIsDark = topLeftIsDark && topRightIsDark
+//        val botCornersIsDark = botLeftIsDark && botRightIsDark
+//
+//        val topOffsetCornersIsDark = image[leftOffsetX, top].isDark() && image[rightOffsetX, top].isDark()
+//        val botOffsetCornersIsDark = image[leftOffsetX, bot].isDark() && image[rightOffsetX, bot].isDark()
+//
+//        val gradient = when {
+//            darkBG && botCornersIsWhite -> {
+//                intArrayOf(blackColor, blackColor, whiteColor, whiteColor)
+//            }
+//            darkBG && topCornersIsWhite -> {
+//                intArrayOf(whiteColor, whiteColor, blackColor, blackColor)
+//            }
+//            darkBG -> {
+//                return ColorDrawable(blackColor)
+//            }
+//            topIsBlackStreak ||
+//                (
+//                    topCornersIsDark &&
+//                        topOffsetCornersIsDark &&
+//                        (topMidIsDark || overallBlackPixels > 9)
+//                    ) -> {
+//                intArrayOf(blackColor, blackColor, whiteColor, whiteColor)
+//            }
+//            bottomIsBlackStreak ||
+//                (
+//                    botCornersIsDark &&
+//                        botOffsetCornersIsDark &&
+//                        (bottomCenterPixel.isDark() || overallBlackPixels > 9)
+//                    ) -> {
+//                intArrayOf(whiteColor, whiteColor, blackColor, blackColor)
+//            }
+//            else -> {
+//                return ColorDrawable(whiteColor)
+//            }
+//        }
+//
+//        return GradientDrawable(
+//            GradientDrawable.Orientation.TOP_BOTTOM,
+//            gradient,
+//        )
+//    }
 
     private fun @receiver:ColorInt Int.isDark(): Boolean =
         red < 40 && blue < 40 && green < 40 && alpha > 200

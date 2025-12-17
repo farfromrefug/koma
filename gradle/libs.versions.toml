@@ -12,6 +12,7 @@ ktlint-core = "1.8.0"
 firebase-bom = "34.6.0"
 markdown = "0.38.1"
 junit = "6.0.1"
+coil = "3.3.0"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -43,14 +44,16 @@ preferencektx = "androidx.preference:preference-ktx:1.2.1"
 
 injekt = "com.github.mihonapp:injekt:91edab2317"
 
-coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.3.0" }
-coil-core = { module = "io.coil-kt.coil3:coil" }
-coil-gif = { module = "io.coil-kt.coil3:coil-gif" }
-coil-compose = { module = "io.coil-kt.coil3:coil-compose" }
-coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp" }
+coil-bom = { module = "io.coil-kt.coil3:coil-bom", version.ref = "coil" }
+coil-core = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
+coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
-subsamplingscaleimageview = "com.github.mozzaru:subsampling-scale-image-view:b50f872d68e79294082b0ae4f367f2ccce353e4d"
-image-decoder = "com.github.tachiyomiorg:image-decoder:41c059e540"
+subsamplingscaleimageview = "com.github.farfromrefug:subsampling-scale-image-view:68469ea90b"
+#subsamplingscaleimageview = "com.github.mozzaru:subsampling-scale-image-view:b50f872d68e79294082b0ae4f367f2ccce353e4d"
+
+#image-decoder = "com.github.tachiyomiorg:image-decoder:41c059e540"
 
 natural-comparator = "com.github.gpanther:java-nat-sort:natural-comparator-1.1"
 
@@ -115,7 +118,7 @@ firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.
 
 [bundles]
 okhttp = ["okhttp-core", "okhttp-logging", "okhttp-brotli", "okhttp-dnsoverhttps"]
-js-engine = ["quickjs-android"]
+#js-engine = ["quickjs-android"]
 sqlite = ["sqlite-framework", "sqlite-ktx", "sqlite-android"]
 coil = ["coil-core", "coil-gif", "coil-compose", "coil-network-okhttp"]
 shizuku = ["shizuku-api", "shizuku-provider"]

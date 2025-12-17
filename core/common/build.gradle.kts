@@ -30,7 +30,10 @@ dependencies {
     api(libs.okhttp.dnsoverhttps)
     api(libs.okio)
 
-    implementation(libs.image.decoder)
+    implementation(libs.coil.core)
+    implementation(libs.coil.gif)
+
+    // implementation(libs.image.decoder)
 
     implementation(libs.unifile)
     implementation(libs.libarchive)
@@ -47,7 +50,7 @@ dependencies {
     implementation(libs.natural.comparator)
 
     // JavaScript engine
-    implementation(libs.bundles.js.engine)
+//    implementation(libs.bundles.js.engine)
 
     testImplementation(libs.bundles.test)
     testRuntimeOnly(libs.junit.platform.launcher)

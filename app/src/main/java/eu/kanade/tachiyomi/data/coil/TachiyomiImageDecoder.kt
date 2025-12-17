@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.data.coil
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.os.Build
 import coil3.ImageLoader
 import coil3.asImage
 import coil3.decode.DecodeResult
@@ -12,22 +15,25 @@ import coil3.request.Options
 import coil3.request.bitmapConfig
 import okio.BufferedSource
 import tachiyomi.core.common.util.system.ImageUtil
-import tachiyomi.decoder.ImageDecoder
 
 /**
- * A [Decoder] that uses built-in [ImageDecoder] to decode images that is not supported by the system.
+ * A [Decoder] that uses Android's ImageDecoder (Skia-backed) on API 28+,
+ * and falls back to BitmapFactory on older platforms.
  */
 class TachiyomiImageDecoder(private val resources: ImageSource, private val options: Options) : Decoder {
 
     override suspend fun decode(): DecodeResult {
-        val decoder = resources.sourceOrNull()?.use {
-            ImageDecoder.newInstance(it.inputStream(), options.cropBorders, displayProfile)
-        }
+        // Prepare source bytes
+        val bytes = resources.sourceOrNull()?.use { src ->
+            src.readByteArray()
+        } ?: throw IllegalStateException("Failed to read image source")
 
-        check(decoder != null && decoder.width > 0 && decoder.height > 0) { "Failed to initialize decoder" }
-
-        val srcWidth = decoder.width
-        val srcHeight = decoder.height
+        // Get source dimensions by decoding bounds first (BitmapFactory) to compute sampling.
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+        val srcWidth = boundsOptions.outWidth
+        val srcHeight = boundsOptions.outHeight
+        check(srcWidth > 0 && srcHeight > 0) { "Failed to get image dimensions" }
 
         val dstWidth = options.size.widthPx(options.scale) { srcWidth }
         val dstHeight = options.size.heightPx(options.scale) { srcHeight }
@@ -40,11 +46,32 @@ class TachiyomiImageDecoder(private val resources: ImageSource, private val opti
             scale = options.scale,
         )
 
-        var bitmap = decoder.decode(sampleSize = sampleSize)
-        decoder.recycle()
+        var bitmap: Bitmap? = null
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val source = ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes))
+            bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                // Set target size so ImageDecoder can sample efficiently
+                decoder.setTargetSize(dstWidth, dstHeight)
+                // Choose allocator based on requested config
+                if (options.bitmapConfig == Bitmap.Config.HARDWARE) {
+                    decoder.setAllocator(ImageDecoder.ALLOCATOR_HARDWARE)
+                } else {
+                    decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+                }
+                // Preserve color space / postprocessing if needed (displayProfile handling removed)
+            }
+        } else {
+            val bmOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = options.bitmapConfig
+            }
+            bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bmOptions)
+        }
 
         check(bitmap != null) { "Failed to decode image" }
 
+        // Convert to hardware bitmap if requested and supported
         if (options.bitmapConfig == Bitmap.Config.HARDWARE && ImageUtil.canUseHardwareBitmap(bitmap)) {
             val hwBitmap = bitmap.copy(Bitmap.Config.HARDWARE, false)
             if (hwBitmap != null) {

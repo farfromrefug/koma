@@ -108,8 +108,8 @@ android {
                 "libandroidx.graphics.path",
                 "libarchive-jni",
                 "libconscrypt_jni",
-                "libimagedecoder",
-                "libquickjs",
+//                "libimagedecoder",
+//                "libquickjs",
                 "libsqlite3x",
             )
                 .map { "**/$it.so" }
@@ -252,7 +252,7 @@ dependencies {
     implementation(libs.subsamplingscaleimageview) {
         exclude(module = "image-decoder")
     }
-    implementation(libs.image.decoder)
+//    implementation(libs.image.decoder)
 
     // UI libraries
     implementation(libs.material)

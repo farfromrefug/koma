@@ -584,22 +584,19 @@ class ReaderViewModel @JvmOverloads constructor(
      * - If going back below threshold, restores to history
      */
     private suspend fun handleHistoryRemoval(readerChapter: ReaderChapter, pageIndex: Int) {
-        if (readerPreferences.removeReadChaptersFromHistory().get()) {
+        val threshold = readerPreferences.removeFromHistoryThreshold().get()
+        if (threshold == 0) return
 
-            val threshold = readerPreferences.removeFromHistoryThreshold().get()
-//        if (threshold == 0) return
+        val pages = readerChapter.pages ?: return
+        val totalPages = pages.size
+        val chapterId = readerChapter.chapter.id ?: return
 
-            val pages = readerChapter.pages ?: return
-            val totalPages = pages.size
-            val chapterId = readerChapter.chapter.id ?: return
+        // Calculate pages from the end
+        val pagesFromEnd = totalPages - pageIndex - 1
 
-            // Calculate pages from the end
-            val pagesFromEnd = totalPages - pageIndex - 1
-
-            // If we're at or past the threshold (counting from end), remove from history
-            if (pagesFromEnd <= threshold) {
-                removeHistory.awaitByChapterId(chapterId)
-            }
+        // If we're at or past the threshold (counting from end), remove from history
+        if (pagesFromEnd < threshold) {
+            removeHistory.awaitByChapterId(chapterId)
         }
     }
 
@@ -655,16 +652,17 @@ class ReaderViewModel @JvmOverloads constructor(
         val totalPage = (readerChapter.pages?.size ?: 0).toLong()
         val currentPage = ((readerChapter.chapter.last_page_read + 1).toLong()).coerceIn(0, totalPage)
 
-        // Check if we should restore history (if currently removed but now below threshold)
+        // Check if we should skip updating history due to threshold
         val threshold = readerPreferences.removeFromHistoryThreshold().get()
         if (threshold > 0) {
             val pagesFromEnd = totalPage - currentPage
-            // Only upsert history if we're below the threshold
+            // Only upsert history if we're beyond the threshold (further from the end)
             if (pagesFromEnd >= threshold) {
                 upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
             }
+            // Otherwise, history remains removed (last_read = 0)
         } else {
-            // If threshold is 0, always update history
+            // If threshold is 0 (disabled), always update history
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
         }
 

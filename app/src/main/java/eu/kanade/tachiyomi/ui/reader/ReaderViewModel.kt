@@ -573,46 +573,9 @@ class ReaderViewModel @JvmOverloads constructor(
                 ),
             )
 
-            // Handle history removal based on threshold
-            handleHistoryRemoval(readerChapter, pageIndex)
         }
     }
 
-    /**
-     * Handles removing or restoring history based on the page threshold.
-     * - If on the last page and threshold > 0, removes from history
-     * - If going back below threshold, restores to history
-     */
-    private suspend fun handleHistoryRemoval(readerChapter: ReaderChapter, pageIndex: Int) {
-        if (readerPreferences.removeReadChaptersFromHistory().get()) {
-            val threshold = readerPreferences.removeFromHistoryThreshold().get()
-
-            val pages = readerChapter.pages ?: return
-            val totalPages = pages.size
-            val chapterId = readerChapter.chapter.id ?: return
-            val mangaId = readerChapter.chapter.manga_id ?: return
-
-            // Calculate pages from the end
-            val pagesFromEnd = totalPages - pageIndex - 1
-
-            // If we're at or past the threshold (counting from end), remove from history
-            if (pagesFromEnd <= threshold) {
-                // Remove from history
-                removeHistory.await(mangaId)
-                
-                // Reset chapter state: lastPageRead to 0 and read to false
-                val chapters = getChaptersByMangaId.await(mangaId, applyScanlatorFilter = false)
-                val chapterUpdates = chapters.map { chapter ->
-                    ChapterUpdate(
-                        id = chapter.id,
-                        lastPageRead = 0,
-                        read = false,
-                    )
-                }
-                updateChapter.awaitAll(chapterUpdates)
-            }
-        }
-    }
 
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
         // Only mark chapter as read if the preference is enabled
@@ -666,20 +629,30 @@ class ReaderViewModel @JvmOverloads constructor(
         val totalPage = (readerChapter.pages?.size ?: 0).toLong()
         val currentPage = ((readerChapter.chapter.last_page_read + 1).toLong()).coerceIn(0, totalPage)
 
-        // Check if we should skip updating history due to threshold
-        val threshold = readerPreferences.removeFromHistoryThreshold().get()
-        if (threshold > 0) {
-            val pagesFromEnd = totalPage - currentPage
-            // Only upsert history if we're beyond the threshold (further from the end)
-            if (pagesFromEnd >= threshold) {
-                upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
-            }
-            // Otherwise, history remains removed (last_read = 0)
-        } else {
-            // If threshold is 0 (disabled), always update history
+
+        // Handle history removal based on threshold
+        if (readerPreferences.removeReadChaptersFromHistory().get()) {
+            val threshold = readerPreferences.removeFromHistoryThreshold().get()
+                val pagesFromEnd = totalPage - currentPage
+                // Only upsert history if we're beyond the threshold (further from the end)
+                if (pagesFromEnd > threshold) {
+                    upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
+                } else {
+                    removeHistory.awaitByChapterId(chapterId)
+                    val mangaId = readerChapter.chapter.manga_id ?: return
+
+                    updateChapter.await(
+                        ChapterUpdate(
+                            id = readerChapter.chapter.id!!,
+                            read = false,
+                            lastPageRead = 0,
+                        ),
+                    )
+                }
+                // Otherwise, history remains removed (last_read = 0)
+        } else{
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
         }
-
         chapterReadStartTime = null
     }
 

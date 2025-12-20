@@ -584,19 +584,22 @@ class ReaderViewModel @JvmOverloads constructor(
      * - If going back below threshold, restores to history
      */
     private suspend fun handleHistoryRemoval(readerChapter: ReaderChapter, pageIndex: Int) {
-        val threshold = readerPreferences.removeFromHistoryThreshold().get()
-        if (threshold == 0) return
+        if (readerPreferences.removeReadChaptersFromHistory().get()) {
 
-        val pages = readerChapter.pages ?: return
-        val totalPages = pages.size
-        val chapterId = readerChapter.chapter.id ?: return
+            val threshold = readerPreferences.removeFromHistoryThreshold().get()
+//        if (threshold == 0) return
 
-        // Calculate pages from the end
-        val pagesFromEnd = totalPages - pageIndex - 1
+            val pages = readerChapter.pages ?: return
+            val totalPages = pages.size
+            val chapterId = readerChapter.chapter.id ?: return
 
-        // If we're at or past the threshold (counting from end), remove from history
-        if (pagesFromEnd < threshold) {
-            removeHistory.awaitByChapterId(chapterId)
+            // Calculate pages from the end
+            val pagesFromEnd = totalPages - pageIndex - 1
+
+            // If we're at or past the threshold (counting from end), remove from history
+            if (pagesFromEnd <= threshold) {
+                removeHistory.awaitByChapterId(chapterId)
+            }
         }
     }
 
@@ -664,7 +667,7 @@ class ReaderViewModel @JvmOverloads constructor(
             // If threshold is 0, always update history
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
         }
-        
+
         chapterReadStartTime = null
     }
 

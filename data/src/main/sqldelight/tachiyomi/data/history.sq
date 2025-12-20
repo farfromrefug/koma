@@ -40,13 +40,11 @@ ON H.chapter_id = C._id
 WHERE C.url = :chapterUrl AND C._id = H.chapter_id;
 
 resetHistoryById:
-UPDATE history
-SET last_read = 0
+DELETE FROM history
 WHERE _id = :historyId;
 
 resetHistoryByMangaId:
-UPDATE history
-SET last_read = 0
+DELETE FROM history
 WHERE _id IN (
     SELECT H._id
     FROM mangas M
@@ -56,6 +54,10 @@ WHERE _id IN (
     ON C._id = H.chapter_id
     WHERE M._id = :mangaId
 );
+
+resetHistoryByChapterId:
+DELETE FROM history
+WHERE chapter_id = :chapterId;
 
 removeAllHistory:
 DELETE FROM history;

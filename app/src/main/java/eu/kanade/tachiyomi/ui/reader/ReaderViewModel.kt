@@ -106,6 +106,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val getChapterColorFilter: GetChapterColorFilter = Injekt.get(),
     private val setChapterColorFilter: SetChapterColorFilter = Injekt.get(),
+    private val removeHistory: tachiyomi.domain.history.interactor.RemoveHistory = Injekt.get(),
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -571,31 +572,36 @@ class ReaderViewModel @JvmOverloads constructor(
                     totalPages = totalPages,
                 ),
             )
+
         }
     }
 
+
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
-        readerChapter.chapter.read = true
-        updateTrackChapterRead(readerChapter)
-        deleteChapterIfNeeded(readerChapter)
+        // Only mark chapter as read if the preference is enabled
+        if (readerPreferences.markChaptersAsRead().get()) {
+            readerChapter.chapter.read = true
+            updateTrackChapterRead(readerChapter)
+            deleteChapterIfNeeded(readerChapter)
 
-        val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead().get()
-            .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
-        if (!markDuplicateAsRead) return
+            val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead().get()
+                .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
+            if (!markDuplicateAsRead) return
 
-        val duplicateUnreadChapters = unfilteredChapterList
-            .mapNotNull { chapter ->
-                if (
-                    !chapter.read &&
-                    chapter.isRecognizedNumber &&
-                    chapter.chapterNumber.toFloat() == readerChapter.chapter.chapter_number
-                ) {
-                    ChapterUpdate(id = chapter.id, read = true)
-                } else {
-                    null
+            val duplicateUnreadChapters = unfilteredChapterList
+                .mapNotNull { chapter ->
+                    if (
+                        !chapter.read &&
+                        chapter.isRecognizedNumber &&
+                        chapter.chapterNumber.toFloat() == readerChapter.chapter.chapter_number
+                    ) {
+                        ChapterUpdate(id = chapter.id, read = true)
+                    } else {
+                        null
+                    }
                 }
-            }
-        updateChapter.awaitAll(duplicateUnreadChapters)
+            updateChapter.awaitAll(duplicateUnreadChapters)
+        }
     }
 
     fun restartReadTimer() {
@@ -623,7 +629,30 @@ class ReaderViewModel @JvmOverloads constructor(
         val totalPage = (readerChapter.pages?.size ?: 0).toLong()
         val currentPage = ((readerChapter.chapter.last_page_read + 1).toLong()).coerceIn(0, totalPage)
 
-        upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
+
+        // Handle history removal based on threshold
+        if (readerPreferences.removeReadChaptersFromHistory().get()) {
+            val threshold = readerPreferences.removeFromHistoryThreshold().get()
+                val pagesFromEnd = totalPage - currentPage
+                // Only upsert history if we're beyond the threshold (further from the end)
+                if (pagesFromEnd > threshold) {
+                    upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
+                } else {
+                    removeHistory.awaitByChapterId(chapterId)
+                    val mangaId = readerChapter.chapter.manga_id ?: return
+
+                    updateChapter.await(
+                        ChapterUpdate(
+                            id = readerChapter.chapter.id!!,
+                            read = false,
+                            lastPageRead = 0,
+                        ),
+                    )
+                }
+                // Otherwise, history remains removed (last_read = 0)
+        } else{
+            upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration, currentPage, totalPage))
+        }
         chapterReadStartTime = null
     }
 

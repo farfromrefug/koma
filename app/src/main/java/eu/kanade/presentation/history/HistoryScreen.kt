@@ -41,7 +41,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.components.ListGroupHeader
 import tachiyomi.presentation.core.components.material.Scaffold
-import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -182,8 +181,8 @@ private fun HistorySelectionToolbar(
     onClickInvertSelection: () -> Unit,
     onClickDelete: () -> Unit,
 ) {
-    AppBar.Default(
-        title = pluralStringResource(MR.plurals.generic_item_selected, count = selectionCount, selectionCount),
+    AppBar(
+        titleContent = { androidx.compose.material3.Text(text = "$selectionCount") },
         navigationIcon = Icons.Outlined.Close,
         onNavigationIconClick = onClickClearSelection,
         actions = {
@@ -327,7 +326,7 @@ private fun DropdownMenuItem(
         trailingIcon = {
             if (isChecked) {
                 androidx.compose.material3.Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Outlined.Done,
+                    imageVector = Icons.Outlined.Done,
                     contentDescription = null,
                 )
             }

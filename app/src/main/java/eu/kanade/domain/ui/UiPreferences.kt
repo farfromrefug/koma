@@ -56,7 +56,7 @@ class UiPreferences(
     fun widgetPadding() = preferenceStore.getFloat("pref_widget_padding", 10F)
     fun widgetCenter() = preferenceStore.getBoolean("pref_widget_center", false)
 
-    fun historyDisplayMode() = preferenceStore.getObject(
+    fun historyDisplayMode() = preferenceStore.getObjectFromString(
         "pref_history_display_mode",
         HistoryDisplayMode.default,
         HistoryDisplayMode.Serializer::serialize,

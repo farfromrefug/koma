@@ -192,6 +192,16 @@ object SettingsReaderScreen : SearchableSettings {
                     preference = readerPreferences.alwaysShowChapterTransition(),
                     title = stringResource(MR.strings.pref_always_show_chapter_transition),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.markChaptersAsRead(),
+                    title = stringResource(MR.strings.pref_mark_chapters_as_read),
+                    subtitle = stringResource(MR.strings.pref_mark_chapters_as_read_summary),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.removeReadChaptersFromHistory(),
+                    title = stringResource(MR.strings.pref_remove_read_chapters_from_history),
+                    subtitle = stringResource(MR.strings.pref_remove_read_chapters_from_history_summary),
+                ),
                 Preference.PreferenceItem.SliderPreference(
                     value = removeFromHistoryThreshold,
                     valueRange = 0..10,

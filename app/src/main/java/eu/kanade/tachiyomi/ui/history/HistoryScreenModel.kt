@@ -58,6 +58,7 @@ class HistoryScreenModel(
     private val updateManga: UpdateManga = Injekt.get(),
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     private val sourceManager: SourceManager = Injekt.get(),
+    private val readerPreferences: eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences = Injekt.get(),
 ) : StateScreenModel<HistoryScreenModel.State>(State()) {
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)
@@ -100,7 +101,14 @@ class HistoryScreenModel(
 
     fun getNextChapterForManga(mangaId: Long, chapterId: Long) {
         screenModelScope.launchIO {
-            sendNextChapterEvent(getNextChapters.await(mangaId, chapterId, onlyUnread = false))
+            val chapters = getNextChapters.await(mangaId, chapterId, onlyUnread = false)
+            
+            // If preference is enabled and there's no next chapter, remove from history
+            if (readerPreferences.removeReadChaptersFromHistory().get() && chapters.isEmpty()) {
+                removeHistory.await(mangaId)
+            }
+            
+            sendNextChapterEvent(chapters)
         }
     }
 

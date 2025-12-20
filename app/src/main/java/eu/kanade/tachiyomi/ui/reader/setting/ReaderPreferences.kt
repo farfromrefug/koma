@@ -79,6 +79,10 @@ class ReaderPreferences(
 
     fun removeFromHistoryThreshold() = preferenceStore.getInt("remove_from_history_threshold", 0)
 
+    fun markChaptersAsRead() = preferenceStore.getBoolean("mark_chapters_as_read", true)
+
+    fun removeReadChaptersFromHistory() = preferenceStore.getBoolean("remove_read_chapters_from_history", false)
+
     // endregion
 
     // region Split two page spread

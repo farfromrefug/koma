@@ -601,27 +601,30 @@ class ReaderViewModel @JvmOverloads constructor(
     }
 
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
-        readerChapter.chapter.read = true
-        updateTrackChapterRead(readerChapter)
-        deleteChapterIfNeeded(readerChapter)
+        // Only mark chapter as read if the preference is enabled
+        if (readerPreferences.markChaptersAsRead().get()) {
+            readerChapter.chapter.read = true
+            updateTrackChapterRead(readerChapter)
+            deleteChapterIfNeeded(readerChapter)
 
-        val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead().get()
-            .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
-        if (!markDuplicateAsRead) return
+            val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead().get()
+                .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
+            if (!markDuplicateAsRead) return
 
-        val duplicateUnreadChapters = unfilteredChapterList
-            .mapNotNull { chapter ->
-                if (
-                    !chapter.read &&
-                    chapter.isRecognizedNumber &&
-                    chapter.chapterNumber.toFloat() == readerChapter.chapter.chapter_number
-                ) {
-                    ChapterUpdate(id = chapter.id, read = true)
-                } else {
-                    null
+            val duplicateUnreadChapters = unfilteredChapterList
+                .mapNotNull { chapter ->
+                    if (
+                        !chapter.read &&
+                        chapter.isRecognizedNumber &&
+                        chapter.chapterNumber.toFloat() == readerChapter.chapter.chapter_number
+                    ) {
+                        ChapterUpdate(id = chapter.id, read = true)
+                    } else {
+                        null
+                    }
                 }
-            }
-        updateChapter.awaitAll(duplicateUnreadChapters)
+            updateChapter.awaitAll(duplicateUnreadChapters)
+        }
     }
 
     fun restartReadTimer() {

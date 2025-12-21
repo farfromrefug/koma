@@ -41,7 +41,9 @@ import eu.kanade.tachiyomi.data.library.LocalMangaImportJob
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
+import eu.kanade.tachiyomi.source.PaginatedChapterListSource
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.getChapterListFlow
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.editCover
@@ -644,7 +646,31 @@ class MangaScreenModel(
         val state = successState ?: return
         try {
             withIOContext {
-                val chapters = state.source.getChapterList(state.manga.toSManga())
+                val chapters = if (state.source is PaginatedChapterListSource) {
+                    // Use paginated loading for sources that support it
+                    val allChapters = mutableListOf<eu.kanade.tachiyomi.source.model.SChapter>()
+                    state.source.getChapterListFlow(state.manga.toSManga())
+                        .collect { chaptersPage ->
+                            allChapters.addAll(chaptersPage.chapters)
+                            
+                            // Incrementally sync chapters as pages are loaded
+                            // This provides progressive feedback to the user
+                            syncChaptersWithSource.await(
+                                allChapters.toList(),
+                                state.manga,
+                                state.source,
+                                manualFetch,
+                            )
+                            
+                            logcat(LogPriority.DEBUG) {
+                                "Loaded ${allChapters.size} chapters so far, hasNextPage=${chaptersPage.hasNextPage}"
+                            }
+                        }
+                    allChapters.toList()
+                } else {
+                    // Use standard loading for sources without pagination
+                    state.source.getChapterList(state.manga.toSManga())
+                }
 
                 val newChapters = syncChaptersWithSource.await(
                     chapters,

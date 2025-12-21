@@ -363,6 +363,20 @@ actual class LocalSource(
     override suspend fun getChapterList(manga: SManga): List<SChapter> = getChapterList(manga, null)
 
     /**
+     * Build chapter URL from manga URL and chapter file.
+     * Uses relative path when available for files in subdirectories.
+     */
+    private fun buildChapterUrl(mangaUrl: String, chapterFile: UniFile): String {
+        val relativePath = fileSystem.getRelativePath(mangaUrl, chapterFile)
+        return if (relativePath != null) {
+            "$mangaUrl$URL_SEPARATOR$relativePath"
+        } else {
+            // Fallback to just the filename if we can't determine relative path
+            "$mangaUrl$URL_SEPARATOR${chapterFile.name}"
+        }
+    }
+
+    /**
      * Process a single chapter file with error handling.
      * Extracts metadata and generates chapter cover thumbnail.
      *
@@ -374,14 +388,7 @@ actual class LocalSource(
     private fun processChapterFile(manga: SManga, mangaDir: UniFile?, chapterFile: UniFile): SChapter? {
         return try {
             SChapter.create().apply {
-                // Use relative path for files in subdirectories
-                val relativePath = fileSystem.getRelativePath(manga.url, chapterFile)
-                url = if (relativePath != null) {
-                    "${manga.url}${LocalSource.URL_SEPARATOR}$relativePath"
-                } else {
-                    // Fallback to just the filename if we can't determine relative path
-                    "${manga.url}${LocalSource.URL_SEPARATOR}${chapterFile.name}"
-                }
+                url = buildChapterUrl(manga.url, chapterFile)
                 
                 name = if (chapterFile.isDirectory) {
                     chapterFile.name
@@ -451,12 +458,7 @@ actual class LocalSource(
         // Phase 1: Emit placeholder chapters immediately with just filenames
         val placeholders = chapterFiles.map { chapterFile ->
             SChapter.create().apply {
-                val relativePath = fileSystem.getRelativePath(manga.url, chapterFile)
-                url = if (relativePath != null) {
-                    "${manga.url}${LocalSource.URL_SEPARATOR}$relativePath"
-                } else {
-                    "${manga.url}${LocalSource.URL_SEPARATOR}${chapterFile.name}"
-                }
+                url = buildChapterUrl(manga.url, chapterFile)
                 name = if (chapterFile.isDirectory) {
                     chapterFile.name
                 } else {

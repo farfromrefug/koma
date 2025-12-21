@@ -1,6 +1,8 @@
 package tachiyomi.source.local.io
 
 import com.hippo.unifile.UniFile
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.storage.service.StorageManager
 
 actual class LocalSourceFileSystem(
@@ -50,25 +52,32 @@ actual class LocalSourceFileSystem(
         val filePath = file.filePath
         
         if (mangaDirPath != null && filePath != null) {
-            // Normalize paths to absolute canonical paths to prevent directory traversal
-            val mangaDirCanonical = java.io.File(mangaDirPath).canonicalPath
-            val fileCanonical = java.io.File(filePath).canonicalPath
-            
-            // Verify the file is actually within the manga directory
-            if (!fileCanonical.startsWith(mangaDirCanonical)) {
-                return null
+            try {
+                // Normalize paths to absolute canonical paths to prevent directory traversal
+                val mangaDirCanonical = java.io.File(mangaDirPath).canonicalPath
+                val fileCanonical = java.io.File(filePath).canonicalPath
+                
+                // Verify the file is actually within the manga directory
+                if (!fileCanonical.startsWith(mangaDirCanonical)) {
+                    return null
+                }
+                
+                val relativePath = fileCanonical.substring(mangaDirCanonical.length)
+                    .trimStart('/', '\\') // Handle both Unix and Windows separators
+                    .replace('\\', '/') // Normalize to forward slashes
+                
+                // Additional security check: reject paths with traversal sequences
+                if (relativePath.contains("..")) {
+                    return null
+                }
+                
+                return if (relativePath.isNotEmpty()) relativePath else null
+            } catch (e: java.io.IOException) {
+                // If canonical path resolution fails, fall through to URI-based method
+                logcat(LogPriority.WARN, e) { 
+                    "Failed to get canonical path for chapter file" 
+                }
             }
-            
-            val relativePath = fileCanonical.substring(mangaDirCanonical.length)
-                .trimStart('/', '\\') // Handle both Unix and Windows separators
-                .replace('\\', '/') // Normalize to forward slashes
-            
-            // Additional security check: reject paths with traversal sequences
-            if (relativePath.contains("..")) {
-                return null
-            }
-            
-            return if (relativePath.isNotEmpty()) relativePath else null
         }
         
         // Fall back to URI-based path extraction
@@ -94,15 +103,26 @@ actual class LocalSourceFileSystem(
     /**
      * Find a file within a manga directory using a relative path that may contain subdirectories.
      * The path should use '/' as separator (e.g., "subfolder/chapter.cbz").
+     * Includes security validation to prevent directory traversal.
      */
     actual fun findFileByRelativePath(mangaName: String, relativePath: String): UniFile? {
         val mangaDir = getMangaDirectory(mangaName) ?: return null
+        
+        // Security check: reject paths with traversal sequences
+        if (relativePath.contains("..")) {
+            return null
+        }
         
         // Split the path and navigate through the directory structure
         val pathParts = relativePath.split('/')
         var current: UniFile? = mangaDir
         
         for (part in pathParts) {
+            // Security check: reject invalid path components
+            if (part.isEmpty() || part == "." || part == "..") {
+                return null
+            }
+            
             current = current?.findFile(part)
             if (current == null) break
         }

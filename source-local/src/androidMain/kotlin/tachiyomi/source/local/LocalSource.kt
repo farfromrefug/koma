@@ -524,13 +524,20 @@ actual class LocalSource(
 
     fun getFormat(chapter: SChapter): Format {
         try {
-            val urlParts = chapter.url.split('/', limit = 2)
-            if (urlParts.size != 2) {
+            // Split only on the first '/' to separate manga dir from chapter path
+            val firstSlashIndex = chapter.url.indexOf('/')
+            if (firstSlashIndex == -1) {
+                // No separator found - malformed URL
                 throw Exception(context.stringResource(MR.strings.chapter_not_found))
             }
             
-            val mangaDirName = urlParts[0]
-            val chapterPath = urlParts[1]
+            val mangaDirName = chapter.url.substring(0, firstSlashIndex)
+            val chapterPath = chapter.url.substring(firstSlashIndex + 1)
+            
+            // Validate that we have both parts
+            if (mangaDirName.isEmpty() || chapterPath.isEmpty()) {
+                throw Exception(context.stringResource(MR.strings.chapter_not_found))
+            }
             
             // Use the new method that can handle subdirectories
             val chapterFile = fileSystem.findFileByRelativePath(mangaDirName, chapterPath)

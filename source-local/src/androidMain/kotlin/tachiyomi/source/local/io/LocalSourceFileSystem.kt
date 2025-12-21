@@ -42,7 +42,24 @@ actual class LocalSourceFileSystem(
      */
     actual fun getRelativePath(mangaName: String, file: UniFile): String? {
         val mangaDir = getMangaDirectory(mangaName) ?: return null
-        val mangaUri = mangaDir.uri.toString()
+        
+        // Try to use filePath first, fall back to URI
+        val mangaDirPath = mangaDir.filePath
+        val filePath = file.filePath
+        
+        if (mangaDirPath != null && filePath != null) {
+            // Use file paths if available (more reliable)
+            if (!filePath.startsWith(mangaDirPath)) {
+                return null
+            }
+            val relativePath = filePath.substring(mangaDirPath.length)
+                .trimStart('/', '\\') // Handle both Unix and Windows separators
+                .replace('\\', '/') // Normalize to forward slashes
+            return if (relativePath.isNotEmpty()) relativePath else null
+        }
+        
+        // Fall back to URI-based path extraction
+        val mangaUri = mangaDir.uri.toString().trimEnd('/')
         val fileUri = file.uri.toString()
         
         if (!fileUri.startsWith(mangaUri)) {
@@ -50,7 +67,8 @@ actual class LocalSourceFileSystem(
         }
         
         // Extract the relative path after the manga directory
-        val relativePath = fileUri.substring(mangaUri.length).trimStart('/')
+        val relativePath = fileUri.substring(mangaUri.length)
+            .trimStart('/') // URIs use forward slashes
         return if (relativePath.isNotEmpty()) relativePath else null
     }
 

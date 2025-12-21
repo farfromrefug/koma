@@ -646,17 +646,19 @@ class MangaScreenModel(
         val state = successState ?: return
         try {
             withIOContext {
-                val chapters = if (state.source is PaginatedChapterListSource) {
+                val newChapters = if (state.source is PaginatedChapterListSource) {
                     // Use paginated loading for sources that support it
                     val allChapters = mutableListOf<eu.kanade.tachiyomi.source.model.SChapter>()
+                    var latestNewChapters = emptyList<Chapter>()
+                    
                     state.source.getChapterListFlow(state.manga.toSManga())
                         .collect { chaptersPage ->
                             allChapters.addAll(chaptersPage.chapters)
                             
                             // Incrementally sync chapters as pages are loaded
                             // This provides progressive feedback to the user
-                            syncChaptersWithSource.await(
-                                allChapters.toList(),
+                            latestNewChapters = syncChaptersWithSource.await(
+                                allChapters,
                                 state.manga,
                                 state.source,
                                 manualFetch,
@@ -666,18 +668,17 @@ class MangaScreenModel(
                                 "Loaded ${allChapters.size} chapters so far, hasNextPage=${chaptersPage.hasNextPage}"
                             }
                         }
-                    allChapters.toList()
+                    latestNewChapters
                 } else {
                     // Use standard loading for sources without pagination
-                    state.source.getChapterList(state.manga.toSManga())
+                    val chapters = state.source.getChapterList(state.manga.toSManga())
+                    syncChaptersWithSource.await(
+                        chapters,
+                        state.manga,
+                        state.source,
+                        manualFetch,
+                    )
                 }
-
-                val newChapters = syncChaptersWithSource.await(
-                    chapters,
-                    state.manga,
-                    state.source,
-                    manualFetch,
-                )
 
                 if (manualFetch) {
                     downloadNewChapters(newChapters)

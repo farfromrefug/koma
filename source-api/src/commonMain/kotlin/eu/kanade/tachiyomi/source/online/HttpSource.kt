@@ -314,7 +314,7 @@ abstract class HttpSource : CatalogueSource {
      *
      * @return true if chapter list uses pagination, false otherwise
      */
-    protected open fun supportsChapterListPagination(): Boolean = false
+    open fun supportsChapterListPagination(): Boolean = false
 
     /**
      * Returns the request for updating the chapter list. Override only if it's needed to override

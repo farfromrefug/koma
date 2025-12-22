@@ -10,36 +10,24 @@ import tachiyomi.core.common.util.system.logcat
 
 /**
  * Interface for sources that support paginated chapter lists.
- * This is useful when:
- * - The source API uses pagination for chapter lists
- * - The manga has a very large number of chapters
- * - You want to load chapters incrementally for better performance
- *
- * If a source implements this interface, the app will use [getChapterList] with pagination
- * to load chapters incrementally. Otherwise, it will fall back to the standard [Source.getChapterList]
- * which loads all chapters at once.
- *
- * Example implementation:
- * ```kotlin
- * class MySource : HttpSource(), PaginatedChapterListSource {
- *     override suspend fun getChapterList(manga: SManga, page: Int): ChaptersPage {
- *         val response = client.newCall(chapterListRequest(manga, page)).await()
- *         return chapterListParse(response)
- *     }
- *
- *     private fun chapterListRequest(manga: SManga, page: Int): Request {
- *         return GET("$baseUrl${manga.url}/chapters?page=$page", headers)
- *     }
- *
- *     private fun chapterListParse(response: Response): ChaptersPage {
- *         val document = response.asJsoup()
- *         val chapters = document.select("div.chapter").map { ... }
- *         val hasNextPage = document.select("a.next-page").isNotEmpty()
- *         return ChaptersPage(chapters, hasNextPage)
- *     }
- * }
- * ```
+ * 
+ * @deprecated Use HttpSource.supportsChapterListPagination() instead.
+ * 
+ * This interface is deprecated in favor of the built-in pagination support in HttpSource.
+ * To migrate your source:
+ * 
+ * 1. Remove PaginatedChapterListSource from your class declaration
+ * 2. Override supportsChapterListPagination() to return true
+ * 3. Update chapterListRequest() to use the page parameter
+ * 4. Update chapterListParse() to set the hasNextPage parameter
+ * 
+ * See PAGINATED_CHAPTERS.md for migration examples.
  */
+@Deprecated(
+    message = "Use HttpSource pagination methods instead. Override supportsChapterListPagination() and use page parameter in chapterListRequest().",
+    replaceWith = ReplaceWith("HttpSource"),
+    level = DeprecationLevel.WARNING
+)
 interface PaginatedChapterListSource : Source {
 
     /**
@@ -96,15 +84,13 @@ interface PaginatedChapterListSource : Source {
 
 /**
  * Extension function to get chapters as a Flow for progressive loading.
- * This is useful for UI that wants to display chapters as they are loaded
- * rather than waiting for all chapters to load.
- *
- * Includes safety limits to prevent infinite loops from buggy APIs.
- *
- * @param manga the manga to get chapters for
- * @param maxPages maximum number of pages to fetch (default: from PaginatedChapterListSource.MAX_CHAPTER_PAGES)
- * @return a Flow that emits chapter pages as they are loaded
+ * 
+ * @deprecated Use HttpSource.getChapterListPage() instead.
  */
+@Deprecated(
+    message = "Use HttpSource.getChapterListPage() for single page fetching",
+    level = DeprecationLevel.WARNING
+)
 fun PaginatedChapterListSource.getChapterListFlow(
     manga: SManga,
     maxPages: Int = PaginatedChapterListSource.MAX_CHAPTER_PAGES

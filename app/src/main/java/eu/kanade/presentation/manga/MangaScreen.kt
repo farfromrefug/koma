@@ -145,7 +145,7 @@ fun MangaScreen(
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
-    
+
     // For infinite scroll
     onLoadNextChapterPage: () -> Unit = {},
 
@@ -201,7 +201,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     } else if (!isTabletUi) {
         MangaScreenSmallImpl(
@@ -243,7 +244,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     } else  {
         MangaScreenLargeImpl(
@@ -285,7 +287,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     }
 }
@@ -338,6 +341,8 @@ private fun MangaScreenSmallImpl(
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
+
+    onLoadNextChapterPage: () -> Unit = {},
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -661,7 +666,7 @@ private fun MangaScreenSmallImpl(
                                 )
                             }
                         }
-                        
+
                         // Loading indicator for infinite scroll
                         val paginationState = state.chapterPaginationState
                         if (paginationState != null && (paginationState.hasNextPage || paginationState.isLoadingNextPage)) {
@@ -687,7 +692,7 @@ private fun MangaScreenSmallImpl(
                             }
                         }
                     }
-                    
+
                     // Detect scroll position for infinite scroll
                     val paginationState = state.chapterPaginationState
                     if (paginationState != null && paginationState.hasNextPage && !paginationState.isLoadingNextPage) {
@@ -696,7 +701,7 @@ private fun MangaScreenSmallImpl(
                                 .collect { layoutInfo ->
                                     val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                                     val totalItems = layoutInfo.totalItemsCount
-                                    
+
                                     // Load next page when user scrolls within 5 items of the end
                                     if (totalItems > 0 && lastVisibleIndex >= totalItems - 5) {
                                         onLoadNextChapterPage()
@@ -764,6 +769,7 @@ fun MangaScreenLargeImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
+    onLoadNextChapterPage: () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
@@ -1035,6 +1041,7 @@ private fun MangaScreenCompactImpl(
     onInvertSelection: () -> Unit,
     showFab: Boolean,
     onShowChapterInfo: ((Chapter) -> Unit)? = null,
+    onLoadNextChapterPage: () -> Unit,
 ) {
     val chapterListState = rememberLazyListState()
 

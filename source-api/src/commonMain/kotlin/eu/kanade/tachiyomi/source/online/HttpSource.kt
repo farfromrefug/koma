@@ -309,9 +309,9 @@ abstract class HttpSource : CatalogueSource {
     /**
      * Returns whether the source uses pagination for chapter lists.
      * When true, [chapterListRequest] and [chapterListParse] will be called with a page parameter.
-     * 
+     *
      * Override this and return true to enable pagination support.
-     * 
+     *
      * @return true if chapter list uses pagination, false otherwise
      */
     protected open fun supportsChapterListPagination(): Boolean = false
@@ -331,6 +331,16 @@ abstract class HttpSource : CatalogueSource {
     }
 
     /**
+     * Returns the request for updating the chapter list. Override only if it's needed to override
+     * the url, send different headers or request method like POST.
+     *
+     * @param manga the manga to look for chapters.
+     */
+    protected open fun chapterListRequest(manga: SManga): Request {
+        return chapterListRequest(manga, 1)
+    }
+
+    /**
      * Parses the response from the site and returns a list of chapters.
      *
      * When [supportsChapterListPagination] returns true, return only the chapters for the requested page.
@@ -347,7 +357,7 @@ abstract class HttpSource : CatalogueSource {
 
     /**
      * Parses the response from the site and returns a list of chapters.
-     * 
+     *
      * For non-paginated sources, this should return all chapters.
      * For paginated sources, override [chapterListParse] with hasNextPage parameter instead.
      *

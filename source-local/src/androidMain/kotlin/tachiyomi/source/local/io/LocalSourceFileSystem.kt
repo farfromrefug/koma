@@ -1,6 +1,8 @@
 package tachiyomi.source.local.io
 
 import com.hippo.unifile.UniFile
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.storage.service.StorageManager
 
 actual class LocalSourceFileSystem(
@@ -34,5 +36,97 @@ actual class LocalSourceFileSystem(
 
         collect(root)
         return result
+    }
+
+    /**
+     * Get the relative path of a file from the manga directory.
+     * Returns the path with '/' separators, or null if the file is not within the manga directory.
+     * This method validates that the file is actually within the manga directory to prevent
+     * directory traversal attacks.
+     */
+    actual fun getRelativePath(mangaName: String, file: UniFile): String? {
+        val mangaDir = getMangaDirectory(mangaName) ?: return null
+        
+        // Try to use filePath first, fall back to URI
+        val mangaDirPath = mangaDir.filePath
+        val filePath = file.filePath
+        
+        if (mangaDirPath != null && filePath != null) {
+            try {
+                // Normalize paths to absolute canonical paths to prevent directory traversal
+                val mangaDirCanonical = java.io.File(mangaDirPath).canonicalPath
+                val fileCanonical = java.io.File(filePath).canonicalPath
+                
+                // Verify the file is actually within the manga directory
+                if (!fileCanonical.startsWith(mangaDirCanonical)) {
+                    return null
+                }
+                
+                val relativePath = fileCanonical.substring(mangaDirCanonical.length)
+                    .trimStart('/', '\\') // Handle both Unix and Windows separators
+                    .replace('\\', '/') // Normalize to forward slashes
+                
+                // Additional security check: reject paths with traversal sequences
+                if (relativePath.contains("..")) {
+                    return null
+                }
+                
+                return if (relativePath.isNotEmpty()) relativePath else null
+            } catch (e: java.io.IOException) {
+                // If canonical path resolution fails, fall through to URI-based method
+                logcat(LogPriority.WARN, e) { 
+                    "Failed to get canonical path for chapter file" 
+                }
+            }
+        }
+        
+        // Fall back to URI-based path extraction
+        val mangaUri = mangaDir.uri.toString().trimEnd('/')
+        val fileUri = file.uri.toString()
+        
+        if (!fileUri.startsWith(mangaUri)) {
+            return null
+        }
+        
+        // Extract the relative path after the manga directory
+        val relativePath = fileUri.substring(mangaUri.length)
+            .trimStart('/') // URIs use forward slashes
+        
+        // Security check: reject paths with traversal sequences
+        if (relativePath.contains("..")) {
+            return null
+        }
+        
+        return if (relativePath.isNotEmpty()) relativePath else null
+    }
+
+    /**
+     * Find a file within a manga directory using a relative path that may contain subdirectories.
+     * The path should use '/' as separator (e.g., "subfolder/chapter.cbz").
+     * Includes security validation to prevent directory traversal.
+     */
+    actual fun findFileByRelativePath(mangaName: String, relativePath: String): UniFile? {
+        val mangaDir = getMangaDirectory(mangaName) ?: return null
+        
+        // Security check: reject paths with traversal sequences
+        if (relativePath.contains("..")) {
+            return null
+        }
+        
+        // Split the path and navigate through the directory structure
+        val pathParts = relativePath.split('/')
+        var current: UniFile? = mangaDir
+        
+        for (part in pathParts) {
+            // Security check: reject invalid path components
+            if (part.isEmpty() || part == "." || part == "..") {
+                return null
+            }
+            
+            current = current?.findFile(part)
+            if (current == null) break
+        }
+        
+        return current
     }
 }

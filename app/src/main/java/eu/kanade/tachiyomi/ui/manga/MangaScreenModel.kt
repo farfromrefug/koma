@@ -42,6 +42,8 @@ import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.editCover
@@ -644,14 +646,46 @@ class MangaScreenModel(
         val state = successState ?: return
         try {
             withIOContext {
-                val chapters = state.source.getChapterList(state.manga.toSManga())
+                val newChapters = if (state.source is HttpSource && state.source.supportsChapterListPagination()) {
+                    // Use paginated loading for HttpSources that support it
+                    // Load only the first page initially for infinite scroll
+                    val chaptersPage = state.source.getChapterListPage(state.manga.toSManga(), 0)
 
-                val newChapters = syncChaptersWithSource.await(
-                    chapters,
-                    state.manga,
-                    state.source,
-                    manualFetch,
-                )
+                    // Sync the first page of chapters
+                    val latestNewChapters = syncChaptersWithSource.await(
+                        chaptersPage.chapters,
+                        state.manga,
+                        state.source,
+                        manualFetch,
+                    )
+
+                    // Update state with pagination info
+                    updateSuccessState {
+                        it.copy(
+                            chapterPaginationState = ChapterPaginationState(
+                                currentPage = 0,
+                                hasNextPage = chaptersPage.hasNextPage,
+                                isLoadingNextPage = false,
+                                loadedChapters = chaptersPage.chapters,
+                            )
+                        )
+                    }
+
+                    logcat(LogPriority.DEBUG) {
+                        "Loaded ${chaptersPage.chapters.size} chapters (page 1), hasNextPage=${chaptersPage.hasNextPage}"
+                    }
+
+                    latestNewChapters
+                } else {
+                    // Use standard loading for sources without pagination
+                    val chapters = state.source.getChapterList(state.manga.toSManga())
+                    syncChaptersWithSource.await(
+                        chapters,
+                        state.manga,
+                        state.source,
+                        manualFetch,
+                    )
+                }
 
                 if (manualFetch) {
                     downloadNewChapters(newChapters)
@@ -670,6 +704,75 @@ class MangaScreenModel(
             }
             val newManga = mangaRepository.getMangaById(mangaId)
             updateSuccessState { it.copy(manga = newManga, isRefreshingData = false) }
+        }
+    }
+
+    /**
+     * Load the next page of chapters (for infinite scroll).
+     * Called when user scrolls near the bottom of the chapter list.
+     */
+    fun loadNextChapterPage() {
+        val state = successState ?: return
+        val paginationState = state.chapterPaginationState ?: return
+
+        // Don't load if already loading or no more pages
+        if (paginationState.isLoadingNextPage || !paginationState.hasNextPage) {
+            return
+        }
+
+        // Only works with HttpSource pagination
+        if (state.source !is HttpSource || !state.source.supportsChapterListPagination()) {
+            return
+        }
+
+        screenModelScope.launchIO {
+            try {
+                // Mark as loading
+                updateSuccessState {
+                    it.copy(
+                        chapterPaginationState = paginationState.copy(isLoadingNextPage = true)
+                    )
+                }
+
+                val nextPage = paginationState.currentPage + 1
+                val chaptersPage = state.source.getChapterListPage(state.manga.toSManga(), nextPage)
+
+                // Combine with previously loaded chapters
+                val allLoadedChapters = paginationState.loadedChapters + chaptersPage.chapters
+
+                // Sync all chapters (including the new page)
+                syncChaptersWithSource.await(
+                    allLoadedChapters,
+                    state.manga,
+                    state.source,
+                    false,
+                )
+
+                // Update pagination state
+                updateSuccessState {
+                    it.copy(
+                        chapterPaginationState = ChapterPaginationState(
+                            currentPage = nextPage,
+                            hasNextPage = chaptersPage.hasNextPage,
+                            isLoadingNextPage = false,
+                            loadedChapters = allLoadedChapters,
+                        )
+                    )
+                }
+
+                logcat(LogPriority.DEBUG) {
+                    "Loaded page $nextPage with ${chaptersPage.chapters.size} chapters, hasNextPage=${chaptersPage.hasNextPage}"
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Error loading next chapter page" }
+
+                // Reset loading state on error
+                updateSuccessState {
+                    it.copy(
+                        chapterPaginationState = paginationState.copy(isLoadingNextPage = false)
+                    )
+                }
+            }
         }
     }
 
@@ -1355,6 +1458,7 @@ class MangaScreenModel(
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
             val hideMissingChapters: Boolean = false,
+            val chapterPaginationState: ChapterPaginationState? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()
@@ -1439,3 +1543,14 @@ sealed class ChapterList {
         val isDownloaded = downloadState == Download.State.DOWNLOADED
     }
 }
+
+/**
+ * State for tracking chapter pagination during infinite scroll.
+ */
+@Immutable
+data class ChapterPaginationState(
+    val currentPage: Int = 1,
+    val hasNextPage: Boolean = false,
+    val isLoadingNextPage: Boolean = false,
+    val loadedChapters: List<SChapter> = emptyList(),
+)

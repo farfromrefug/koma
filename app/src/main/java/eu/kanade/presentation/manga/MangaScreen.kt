@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -31,14 +33,17 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -144,6 +149,9 @@ fun MangaScreen(
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
 
+    // For infinite scroll
+    onLoadNextChapterPage: () -> Unit = {},
+
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
@@ -196,7 +204,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     } else if (!isTabletUi) {
         MangaScreenSmallImpl(
@@ -238,7 +247,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     } else  {
         MangaScreenLargeImpl(
@@ -280,7 +290,8 @@ fun MangaScreen(
             onAllChapterSelected = onAllChapterSelected,
             onInvertSelection = onInvertSelection,
             showFab = showFab,
-            onShowChapterInfo = onShowChapterInfo
+            onShowChapterInfo = onShowChapterInfo,
+            onLoadNextChapterPage = onLoadNextChapterPage
         )
     }
 }
@@ -333,6 +344,8 @@ private fun MangaScreenSmallImpl(
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
+
+    onLoadNextChapterPage: () -> Unit = {},
 
     // Chapter selection
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
@@ -656,6 +669,48 @@ private fun MangaScreenSmallImpl(
                                 )
                             }
                         }
+
+                        // Loading indicator for infinite scroll
+                        val paginationState = state.chapterPaginationState
+                        if (paginationState != null && (paginationState.hasNextPage || paginationState.isLoadingNextPage)) {
+                            item(
+                                key = "chapter_loading_indicator",
+                                contentType = "loading_indicator",
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (paginationState.isLoadingNextPage) {
+                                        androidx.compose.material3.CircularProgressIndicator()
+                                    } else {
+                                        Text(
+                                            text = stringResource(MR.strings.loading),
+                                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Detect scroll position for infinite scroll
+                    val paginationState = state.chapterPaginationState
+                    if (paginationState != null && paginationState.hasNextPage && !paginationState.isLoadingNextPage) {
+                        LaunchedEffect(chapterListState) {
+                            snapshotFlow { chapterListState.layoutInfo }
+                                .collect { layoutInfo ->
+                                    val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                    val totalItems = layoutInfo.totalItemsCount
+
+                                    // Load next page when user scrolls within 5 items of the end
+                                    if (totalItems > 0 && lastVisibleIndex >= totalItems - 5) {
+                                        onLoadNextChapterPage()
+                                    }
+                                }
+                        }
                     }
                 }
             }
@@ -717,6 +772,7 @@ fun MangaScreenLargeImpl(
     onChapterSelected: (ChapterList.Item, Boolean, Boolean, Boolean) -> Unit,
     onAllChapterSelected: (Boolean) -> Unit,
     onInvertSelection: () -> Unit,
+    onLoadNextChapterPage: () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
@@ -923,6 +979,48 @@ fun MangaScreenLargeImpl(
                                     )
                                 }
                             }
+                            
+                            // Loading indicator for infinite scroll
+                            val paginationState = state.chapterPaginationState
+                            if (paginationState != null && (paginationState.hasNextPage || paginationState.isLoadingNextPage)) {
+                                item(
+                                    key = "chapter_loading_indicator",
+                                    contentType = "loading_indicator",
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (paginationState.isLoadingNextPage) {
+                                            androidx.compose.material3.CircularProgressIndicator()
+                                        } else {
+                                            Text(
+                                                text = stringResource(MR.strings.loading),
+                                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Detect scroll position for infinite scroll
+                        val paginationState = state.chapterPaginationState
+                        if (paginationState != null && paginationState.hasNextPage && !paginationState.isLoadingNextPage) {
+                            LaunchedEffect(chapterListState) {
+                                snapshotFlow { chapterListState.layoutInfo }
+                                    .collect { layoutInfo ->
+                                        val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                        val totalItems = layoutInfo.totalItemsCount
+                                        
+                                        // Load next page when user scrolls within 5 items of the end
+                                        if (totalItems > 0 && lastVisibleIndex >= totalItems - 5) {
+                                            onLoadNextChapterPage()
+                                        }
+                                    }
+                            }
                         }
                     }
                 },
@@ -988,6 +1086,7 @@ private fun MangaScreenCompactImpl(
     onInvertSelection: () -> Unit,
     showFab: Boolean,
     onShowChapterInfo: ((Chapter) -> Unit)? = null,
+    onLoadNextChapterPage: () -> Unit,
 ) {
     val chapterListState = rememberLazyListState()
 
@@ -1158,6 +1257,52 @@ private fun MangaScreenCompactImpl(
                                 )
                             }
                         }
+                        
+                        // Show loading overlay for infinite scroll in paged mode
+                        val paginationState = state.chapterPaginationState
+                        if (paginationState != null && paginationState.isLoadingNextPage) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.BottomCenter,
+                            ) {
+                                androidx.compose.material3.Surface(
+                                    modifier = Modifier.padding(16.dp),
+                                    shape = androidx.compose.material3.MaterialTheme.shapes.medium,
+                                    tonalElevation = 4.dp,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        androidx.compose.material3.CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                        Text(
+                                            text = stringResource(MR.strings.loading),
+                                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Trigger next page load when reaching last page in paged mode
+                        // Note: PagedChapterList/Grid handle their own UI pagination
+                        // For network pagination, we trigger load when all chapters are viewed
+                        if (paginationState != null && paginationState.hasNextPage && !paginationState.isLoadingNextPage) {
+                            // Check if we're showing most of the loaded chapters
+                            // If so, trigger next page load
+                            LaunchedEffect(chapters.size, paginationState.currentPage) {
+                                // Load next page proactively when we have loaded chapters displayed
+                                // This ensures smooth experience in paged mode
+                                if (chapters.isNotEmpty()) {
+                                    onLoadNextChapterPage()
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -1225,6 +1370,48 @@ private fun MangaScreenCompactImpl(
                                     onChapterSelected = onChapterSelected,
                                 )
                             }
+                        }
+                        
+                        // Loading indicator for infinite scroll
+                        val paginationState = state.chapterPaginationState
+                        if (paginationState != null && (paginationState.hasNextPage || paginationState.isLoadingNextPage)) {
+                            item(
+                                key = "chapter_loading_indicator",
+                                contentType = "loading_indicator",
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (paginationState.isLoadingNextPage) {
+                                        androidx.compose.material3.CircularProgressIndicator()
+                                    } else {
+                                        Text(
+                                            text = stringResource(MR.strings.loading),
+                                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Detect scroll position for infinite scroll
+                    val paginationState = state.chapterPaginationState
+                    if (paginationState != null && paginationState.hasNextPage && !paginationState.isLoadingNextPage) {
+                        LaunchedEffect(chapterListState) {
+                            snapshotFlow { chapterListState.layoutInfo }
+                                .collect { layoutInfo ->
+                                    val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                    val totalItems = layoutInfo.totalItemsCount
+                                    
+                                    // Load next page when user scrolls within 5 items of the end
+                                    if (totalItems > 0 && lastVisibleIndex >= totalItems - 5) {
+                                        onLoadNextChapterPage()
+                                    }
+                                }
                         }
                     }
                 }

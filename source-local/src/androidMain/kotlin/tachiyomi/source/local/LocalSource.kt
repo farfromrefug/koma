@@ -363,6 +363,20 @@ actual class LocalSource(
     override suspend fun getChapterList(manga: SManga): List<SChapter> = getChapterList(manga, null)
 
     /**
+     * Build chapter URL from manga URL and chapter file.
+     * Uses relative path when available for files in subdirectories.
+     */
+    private fun buildChapterUrl(mangaUrl: String, chapterFile: UniFile): String {
+        val relativePath = fileSystem.getRelativePath(mangaUrl, chapterFile)
+        return if (relativePath != null) {
+            "$mangaUrl$URL_SEPARATOR$relativePath"
+        } else {
+            // Fallback to just the filename if we can't determine relative path
+            "$mangaUrl$URL_SEPARATOR${chapterFile.name}"
+        }
+    }
+
+    /**
      * Process a single chapter file with error handling.
      * Extracts metadata and generates chapter cover thumbnail.
      *
@@ -374,7 +388,8 @@ actual class LocalSource(
     private fun processChapterFile(manga: SManga, mangaDir: UniFile?, chapterFile: UniFile): SChapter? {
         return try {
             SChapter.create().apply {
-                url = "${manga.url}/${chapterFile.name}"
+                url = buildChapterUrl(manga.url, chapterFile)
+                
                 name = if (chapterFile.isDirectory) {
                     chapterFile.name
                 } else {
@@ -443,7 +458,7 @@ actual class LocalSource(
         // Phase 1: Emit placeholder chapters immediately with just filenames
         val placeholders = chapterFiles.map { chapterFile ->
             SChapter.create().apply {
-                url = "${manga.url}/${chapterFile.name}"
+                url = buildChapterUrl(manga.url, chapterFile)
                 name = if (chapterFile.isDirectory) {
                     chapterFile.name
                 } else {
@@ -516,12 +531,26 @@ actual class LocalSource(
 
     fun getFormat(chapter: SChapter): Format {
         try {
-            val (mangaDirName, chapterName) = chapter.url.split('/', limit = 2)
-            return fileSystem.getBaseDirectory()
-                ?.findFile(mangaDirName)
-                ?.findFile(chapterName)
-                ?.let(Format.Companion::valueOf)
+            // Split only on the first URL_SEPARATOR to separate manga dir from chapter path
+            val firstSeparatorIndex = chapter.url.indexOf(URL_SEPARATOR)
+            if (firstSeparatorIndex == -1) {
+                // No separator found - malformed URL
+                throw Exception(context.stringResource(MR.strings.chapter_not_found))
+            }
+            
+            val mangaDirName = chapter.url.substring(0, firstSeparatorIndex)
+            val chapterPath = chapter.url.substring(firstSeparatorIndex + URL_SEPARATOR.length)
+            
+            // Validate that we have both parts
+            if (mangaDirName.isEmpty() || chapterPath.isEmpty()) {
+                throw Exception(context.stringResource(MR.strings.chapter_not_found))
+            }
+            
+            // Use the new method that can handle subdirectories
+            val chapterFile = fileSystem.findFileByRelativePath(mangaDirName, chapterPath)
                 ?: throw Exception(context.stringResource(MR.strings.chapter_not_found))
+            
+            return Format.valueOf(chapterFile)
         } catch (e: Format.UnknownFormatException) {
             throw Exception(context.stringResource(MR.strings.local_invalid_format))
         } catch (e: Exception) {
@@ -658,6 +687,12 @@ actual class LocalSource(
         const val HELP_URL = "https://mihon.app/docs/guides/local-source/"
 
         private val LATEST_THRESHOLD = 7.days.inWholeMilliseconds
+        
+        /**
+         * Separator used in chapter URLs to separate manga directory from chapter path.
+         * Chapter URLs have the format: "{mangaDirName}{URL_SEPARATOR}{chapterPath}"
+         */
+        const val URL_SEPARATOR = "/"
         
         /**
          * Maximum number of concurrent chapter processing tasks.

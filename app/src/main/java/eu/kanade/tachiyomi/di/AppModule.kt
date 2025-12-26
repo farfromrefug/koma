@@ -67,11 +67,116 @@ class AppModule(val app: Application) : InjektModule {
                         setPragma(db, "foreign_keys = ON")
                         setPragma(db, "journal_mode = WAL")
                         setPragma(db, "synchronous = NORMAL")
+                        recreateViews(db)
                     }
                     private fun setPragma(db: SupportSQLiteDatabase, pragma: String) {
                         val cursor = db.query("PRAGMA $pragma")
                         cursor.moveToFirst()
                         cursor.close()
+                    }
+                    private fun recreateViews(db: SupportSQLiteDatabase) {
+                        // Recreate views to ensure they match the current schema
+                        // This prevents crashes when columns are added to views
+                        db.execSQL("DROP VIEW IF EXISTS historyView")
+                        db.execSQL("DROP VIEW IF EXISTS libraryView")
+                        db.execSQL("DROP VIEW IF EXISTS updatesView")
+                        
+                        // Recreate historyView
+                        db.execSQL("""
+                            CREATE VIEW historyView AS
+                            SELECT
+                                history._id AS id,
+                                mangas._id AS mangaId,
+                                chapters._id AS chapterId,
+                                mangas.title,
+                                mangas.thumbnail_url AS thumbnailUrl,
+                                mangas.source,
+                                mangas.favorite,
+                                mangas.cover_last_modified,
+                                chapters.chapter_number AS chapterNumber,
+                                chapters.name AS chapterName,
+                                chapters.cover_url AS chapterCoverUrl,
+                                history.last_read AS readAt,
+                                history.time_read AS readDuration,
+                                history.current_page AS currentPage,
+                                history.total_page AS totalPage
+                            FROM mangas
+                            JOIN chapters
+                            ON mangas._id = chapters.manga_id
+                            JOIN history
+                            ON chapters._id = history.chapter_id
+                        """.trimIndent())
+                        
+                        // Recreate libraryView
+                        db.execSQL("""
+                            CREATE VIEW libraryView AS
+                            SELECT
+                                M.*,
+                                coalesce(C.total, 0) AS totalCount,
+                                coalesce(C.readCount, 0) AS readCount,
+                                coalesce(C.latestUpload, 0) AS latestUpload,
+                                coalesce(C.fetchedAt, 0) AS chapterFetchedAt,
+                                coalesce(C.lastRead, 0) AS lastRead,
+                                coalesce(C.bookmarkCount, 0) AS bookmarkCount,
+                                coalesce(MC.categories, '0') AS categories,
+                                MGM.group_id AS groupId
+                            FROM mangas M
+                            LEFT JOIN (
+                                SELECT
+                                    chapters.manga_id,
+                                    count(*) AS total,
+                                    sum(read) AS readCount,
+                                    coalesce(max(chapters.date_upload), 0) AS latestUpload,
+                                    coalesce(max(history.last_read), 0) AS lastRead,
+                                    coalesce(max(chapters.date_fetch), 0) AS fetchedAt,
+                                    sum(chapters.bookmark) AS bookmarkCount
+                                FROM chapters
+                                LEFT JOIN excluded_scanlators
+                                ON chapters.manga_id = excluded_scanlators.manga_id
+                                AND chapters.scanlator = excluded_scanlators.scanlator
+                                LEFT JOIN history
+                                ON chapters._id = history.chapter_id
+                                WHERE excluded_scanlators.scanlator IS NULL
+                                GROUP BY chapters.manga_id
+                            ) AS C
+                            ON M._id = C.manga_id
+                            LEFT JOIN (
+                                SELECT manga_id, group_concat(category_id) AS categories
+                                FROM mangas_categories
+                                GROUP BY manga_id
+                            ) AS MC
+                            ON MC.manga_id = M._id
+                            LEFT JOIN manga_group_members MGM
+                            ON M._id = MGM.manga_id
+                            WHERE M.favorite = 1
+                        """.trimIndent())
+                        
+                        // Recreate updatesView
+                        db.execSQL("""
+                            CREATE VIEW updatesView AS
+                            SELECT
+                                mangas._id AS mangaId,
+                                mangas.title AS mangaTitle,
+                                chapters._id AS chapterId,
+                                chapters.name AS chapterName,
+                                chapters.scanlator,
+                                chapters.url AS chapterUrl,
+                                chapters.read,
+                                chapters.bookmark,
+                                chapters.last_page_read,
+                                mangas.source,
+                                mangas.favorite,
+                                mangas.thumbnail_url AS thumbnailUrl,
+                                mangas.cover_last_modified AS coverLastModified,
+                                chapters.date_upload AS dateUpload,
+                                chapters.date_fetch AS datefetch,
+                                chapters.cover_url AS chapterCoverUrl
+                            FROM mangas JOIN chapters
+                            ON mangas._id = chapters.manga_id
+                            WHERE favorite = 1
+                            AND date_fetch > date_added
+                            ORDER BY date_fetch DESC
+                        """.trimIndent())
                     }
                 },
             )

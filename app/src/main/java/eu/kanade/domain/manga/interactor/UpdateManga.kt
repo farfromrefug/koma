@@ -4,6 +4,7 @@ import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.source.model.SManga
+import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.model.Manga
@@ -18,6 +19,7 @@ import java.time.ZonedDateTime
 class UpdateManga(
     private val mangaRepository: MangaRepository,
     private val fetchInterval: FetchInterval,
+    private val historyRepository: HistoryRepository,
 ) {
 
     suspend fun await(mangaUpdate: MangaUpdate): Boolean {
@@ -115,8 +117,15 @@ class UpdateManga(
             true -> Instant.now().toEpochMilli()
             false -> 0
         }
-        return mangaRepository.update(
+        val result = mangaRepository.update(
             MangaUpdate(id = mangaId, favorite = favorite, dateAdded = dateAdded),
         )
+        
+        // When removing from library, also remove history
+        if (result && !favorite) {
+            historyRepository.resetHistoryByMangaId(mangaId)
+        }
+        
+        return result
     }
 }

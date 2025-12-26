@@ -140,7 +140,7 @@ class UpdateManga(
         )
         
         // When removing from library, also remove history
-        if (result && !favorite) {
+        if (result && favorite == false) {
             historyRepository.resetHistoryByMangaId(mangaId)
         }
         

@@ -123,11 +123,7 @@ internal class DownloadNotifier(private val context: Context) {
             if (download.totalBytes > 0) {
                 // For large files, scale down to avoid Int overflow (max ~2GB)
                 // Use percentage-based progress instead
-                val progressPercent = if (download.totalBytes > 0) {
-                    ((download.downloadedBytes * 100) / download.totalBytes).toInt()
-                } else {
-                    0
-                }
+                val progressPercent = ((download.downloadedBytes * 100) / download.totalBytes).toInt()
                 setProgress(100, progressPercent, false)
             } else if (download.pages != null) {
                 setProgress(download.pages!!.size, download.downloadedImages, false)

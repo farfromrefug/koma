@@ -95,6 +95,10 @@ internal class DownloadNotifier(private val context: Context) {
                 val downloadedMB = download.downloadedBytes / (1024.0 * 1024.0)
                 val totalMB = download.totalBytes / (1024.0 * 1024.0)
                 context.stringResource(MR.strings.chapter_downloading_progress_mb, downloadedMB, totalMB)
+            } else if (download.downloadedBytes > 0) {
+                // Direct download with unknown size - show downloaded amount only
+                val downloadedMB = download.downloadedBytes / (1024.0 * 1024.0)
+                "%.2f MB".format(downloadedMB)
             } else if (download.pages != null) {
                 context.stringResource(
                     MR.strings.chapter_downloading_progress,
@@ -125,6 +129,9 @@ internal class DownloadNotifier(private val context: Context) {
                 // Use percentage-based progress instead
                 val progressPercent = ((download.downloadedBytes * 100) / download.totalBytes).toInt()
                 setProgress(100, progressPercent, false)
+            } else if (download.downloadedBytes > 0) {
+                // Direct download with unknown size - use indeterminate progress
+                setProgress(0, 0, true)
             } else if (download.pages != null) {
                 setProgress(download.pages!!.size, download.downloadedImages, false)
             } else {

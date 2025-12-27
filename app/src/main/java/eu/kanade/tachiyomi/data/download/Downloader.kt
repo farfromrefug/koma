@@ -467,7 +467,7 @@ class Downloader(
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga, sourceIdForCache)
 
-            DiskUtil.createNoMediaFile(tmpDir, context)
+            DiskUtil.createNoMediaFile(mangaDir, context)
 
             download.status = Download.State.DOWNLOADED
 
@@ -577,12 +577,13 @@ class Downloader(
             ).execute()
 
             if (!response.isSuccessful) {
-                throw Exception("Failed to download archive: HTTP ${response.code}")
+                throw Exception("Failed to download archive: HTTP ${response.code} - ${response.message}")
             }
 
             val body = response.body
             val contentLength = body.contentLength()
-            download.totalBytes = contentLength
+            // Set to 0 if content length is unknown (-1)
+            download.totalBytes = if (contentLength > 0) contentLength else 0L
 
             // Download with progress tracking
             var lastNotificationTime = 0L

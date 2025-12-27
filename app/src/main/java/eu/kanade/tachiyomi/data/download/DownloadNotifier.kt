@@ -90,11 +90,18 @@ internal class DownloadNotifier(private val context: Context) {
                 )
             }
 
-            val downloadingProgressText = context.stringResource(
-                MR.strings.chapter_downloading_progress,
-                download.downloadedImages,
-                download.pages!!.size,
-            )
+            // Show progress in MB if direct download, otherwise in pages
+            val downloadingProgressText = if (download.totalBytes > 0) {
+                val downloadedMB = download.downloadedBytes / (1024.0 * 1024.0)
+                val totalMB = download.totalBytes / (1024.0 * 1024.0)
+                "%.2f MB / %.2f MB".format(downloadedMB, totalMB)
+            } else {
+                context.stringResource(
+                    MR.strings.chapter_downloading_progress,
+                    download.downloadedImages,
+                    download.pages!!.size,
+                )
+            }
 
             if (preferences.hideNotificationContent().get()) {
                 setContentTitle(downloadingProgressText)
@@ -110,7 +117,12 @@ internal class DownloadNotifier(private val context: Context) {
                 setContentText(downloadingProgressText)
             }
 
-            setProgress(download.pages!!.size, download.downloadedImages, false)
+            // Set progress based on download type
+            if (download.totalBytes > 0) {
+                setProgress(download.totalBytes.toInt(), download.downloadedBytes.toInt(), false)
+            } else {
+                setProgress(download.pages!!.size, download.downloadedImages, false)
+            }
             setOngoing(true)
 
             show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)

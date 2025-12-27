@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.data.library.LibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.library.LocalMangaImportJob
 import eu.kanade.tachiyomi.data.library.LocalSourceScanJob
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SManga
@@ -45,7 +46,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
+import mihon.core.archive.ArchiveReader
 import mihon.core.archive.ZipWriter
+import mihon.core.archive.archiveReader
 import mihon.domain.manga.model.toDomainManga
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.Response
@@ -371,6 +374,23 @@ class Downloader(
                 download.chapter.url,
             )
         }
+
+        // Try direct CBZ download if configured to save as CBZ
+        if (downloadPreferences.saveChaptersAsCBZ().get()) {
+            try {
+                val archiveUrl = download.source.getChapterArchiveUrl(download.chapter.toSChapter())
+                if (archiveUrl != null) {
+                    downloadChapterArchive(download, mangaDir, chapterDirname, archiveUrl)
+                    return
+                }
+            } catch (e: Throwable) {
+                // If direct download fails, fall back to page-by-page download
+                if (e is CancellationException) throw e
+                logcat(LogPriority.WARN, e) { "Direct CBZ download failed, falling back to page-by-page download" }
+            }
+        }
+
+        // Continue with regular page-by-page download
         val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
 
         try {
@@ -542,6 +562,156 @@ class Downloader(
             logcat(LogPriority.ERROR, error)
             download.status = Download.State.ERROR
             notifier.onError(error.message, download.chapter.name, download.manga.title, download.manga.id)
+        }
+    }
+
+    /**
+     * Downloads a chapter archive (CBZ) directly from the source.
+     *
+     * @param download the chapter to be downloaded.
+     * @param mangaDir the directory where the manga is stored.
+     * @param chapterDirname the name of the chapter directory/file.
+     * @param archiveUrl the URL to download the archive from.
+     */
+    private suspend fun downloadChapterArchive(
+        download: Download,
+        mangaDir: UniFile,
+        chapterDirname: String,
+        archiveUrl: String,
+    ) {
+        val tmpFile = mangaDir.createFile("$chapterDirname.cbz$TMP_DIR_SUFFIX")!!
+
+        try {
+            download.status = Download.State.DOWNLOADING
+
+            // Download the archive
+            val response = download.source.client.newCall(
+                GET(archiveUrl, download.source.headers)
+            ).execute()
+
+            if (!response.isSuccessful) {
+                throw Exception("Failed to download archive: HTTP ${response.code}")
+            }
+
+            val body = response.body
+            val contentLength = body.contentLength()
+            download.totalBytes = contentLength
+
+            // Download with progress tracking
+            body.source().use { source ->
+                tmpFile.openOutputStream().use { outputStream ->
+                    val buffer = ByteArray(8192)
+                    var totalRead = 0L
+                    var read: Int
+
+                    while (source.read(buffer).also { read = it } != -1) {
+                        outputStream.write(buffer, 0, read)
+                        totalRead += read
+                        download.downloadedBytes = totalRead
+                        notifier.onProgressChange(download)
+                    }
+                }
+            }
+
+            response.close()
+
+            // Extract ComicInfo.xml if it exists
+            try {
+                tmpFile.archiveReader(context).use { reader ->
+                    reader.getInputStream(COMIC_INFO_FILE)?.use { stream ->
+                        val comicInfoDir = mangaDir.createDirectory("${chapterDirname}_comic_info_tmp")!!
+                        val comicInfoFile = comicInfoDir.createFile(COMIC_INFO_FILE)!!
+                        comicInfoFile.openOutputStream().use { output ->
+                            stream.copyTo(output)
+                        }
+                        // We'll process this later if needed
+                        comicInfoDir.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.DEBUG, e) { "No ComicInfo.xml found in archive or failed to extract" }
+            }
+
+            // Rename to final name
+            tmpFile.renameTo("$chapterDirname.cbz")
+
+            // Add chapter to cache
+            val sourceIdForCache = if (downloadPreferences.downloadToLocalSource().get()) {
+                LocalSource.ID
+            } else {
+                download.manga.source
+            }
+            cache.addChapter(chapterDirname, mangaDir, download.manga, sourceIdForCache)
+
+            DiskUtil.createNoMediaFile(mangaDir, context)
+
+            download.status = Download.State.DOWNLOADED
+
+            // Handle local source import if needed
+            if (downloadPreferences.downloadToLocalSource().get()) {
+                scope.launch(Dispatchers.IO) {
+                    val provider: DownloadProvider = Injekt.get()
+                    val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get()
+                    val networkToLocalManga: NetworkToLocalManga = Injekt.get()
+
+                    val mangaDirName = provider.getLocalSourceMangaDirName(download.manga.title)
+                    val localUrl = mangaDirName
+                    var localManga = getMangaByUrlAndSourceId.await(localUrl, LocalSource.ID)
+
+                    if (localManga == null) {
+                        val manga = Manga.create().copy(
+                            url = localUrl,
+                            title = mangaDirName,
+                            source = LocalSource.ID,
+                            favorite = true,
+                        )
+                        localManga = networkToLocalManga(manga)
+                    }
+
+                    localManga?.let {
+                        if (!it.favorite) {
+                            val mangaId = localManga.id
+                            val libraryPreferences: LibraryPreferences = Injekt.get()
+                            val updateManga: UpdateManga = Injekt.get()
+                            val setMangaCategories: SetMangaCategories = Injekt.get()
+                            val getCategories: GetCategories = Injekt.get()
+                            val addTracks: AddTracks = Injekt.get()
+
+                            val categories = getCategories.subscribe()
+                                .firstOrNull()
+                                ?.filterNot { it.isSystemCategory }
+                                .orEmpty()
+                            val defaultCategoryId = libraryPreferences.defaultCategory().get().toLong()
+                            val defaultCategory = categories.find { it.id == defaultCategoryId }
+
+                            when {
+                                // Default category set
+                                defaultCategory != null -> {
+                                    val result = updateManga.awaitUpdateFavorite(mangaId, true)
+                                    if (!result) return@launch
+                                    setMangaCategories.await(mangaId, listOf(defaultCategoryId))
+                                }
+
+                                // Automatic 'Default' or no categories
+                                defaultCategoryId == 0L || categories.isEmpty() -> {
+                                    val result = updateManga.awaitUpdateFavorite(mangaId, true)
+                                    if (!result) return@launch
+                                    setMangaCategories.await(mangaId, listOf())
+                                }
+                            }
+
+                            // Sync with tracking services if applicable
+                            addTracks.bindEnhancedTrackers(localManga, sourceManager.getOrStub(localManga.source))
+                        }
+                        LocalMangaImportJob.startNow(context, localManga.id)
+                    }
+                }
+            }
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            tmpFile.delete()
+            logcat(LogPriority.ERROR, error)
+            throw error
         }
     }
 

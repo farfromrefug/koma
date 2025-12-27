@@ -549,6 +549,17 @@ abstract class HttpSource : CatalogueSource {
     open fun prepareNewChapter(chapter: SChapter, manga: SManga) {}
 
     /**
+     * Returns the direct download URL for a chapter archive (CBZ).
+     * If implemented and returns a valid URL, the downloader will download the chapter as a CBZ file directly
+     * instead of downloading individual pages.
+     *
+     * @since extensions-lib 1.6
+     * @param chapter the chapter to get the download URL for.
+     * @return the download URL for the chapter archive, or null if not supported.
+     */
+    open fun getChapterArchiveUrl(chapter: SChapter): String? = null
+
+    /**
      * Returns the list of filters for the source.
      */
     override fun getFilterList() = FilterList()

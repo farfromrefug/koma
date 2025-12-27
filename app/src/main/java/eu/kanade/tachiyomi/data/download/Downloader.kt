@@ -598,6 +598,7 @@ class Downloader(
             download.totalBytes = contentLength
 
             // Download with progress tracking
+            var lastNotificationTime = 0L
             body.source().use { source ->
                 tmpFile.openOutputStream().use { outputStream ->
                     val buffer = ByteArray(8192)
@@ -608,29 +609,24 @@ class Downloader(
                         outputStream.write(buffer, 0, read)
                         totalRead += read
                         download.downloadedBytes = totalRead
-                        notifier.onProgressChange(download)
+                        
+                        // Throttle notifications to once per 500ms
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastNotificationTime > 500) {
+                            notifier.onProgressChange(download)
+                            lastNotificationTime = currentTime
+                        }
                     }
                 }
             }
+            
+            // Final notification
+            notifier.onProgressChange(download)
 
             response.close()
 
-            // Extract ComicInfo.xml if it exists
-            try {
-                tmpFile.archiveReader(context).use { reader ->
-                    reader.getInputStream(COMIC_INFO_FILE)?.use { stream ->
-                        val comicInfoDir = mangaDir.createDirectory("${chapterDirname}_comic_info_tmp")!!
-                        val comicInfoFile = comicInfoDir.createFile(COMIC_INFO_FILE)!!
-                        comicInfoFile.openOutputStream().use { output ->
-                            stream.copyTo(output)
-                        }
-                        // We'll process this later if needed
-                        comicInfoDir.delete()
-                    }
-                }
-            } catch (e: Exception) {
-                logcat(LogPriority.DEBUG, e) { "No ComicInfo.xml found in archive or failed to extract" }
-            }
+            // Note: ComicInfo.xml is preserved in the CBZ archive and will be available when reading
+            // No need to extract it separately
 
             // Rename to final name
             tmpFile.renameTo("$chapterDirname.cbz")

@@ -98,7 +98,7 @@ internal class DownloadNotifier(private val context: Context) {
             } else if (download.downloadedBytes > 0) {
                 // Direct download with unknown size - show downloaded amount only
                 val downloadedMB = download.downloadedBytes / (1024.0 * 1024.0)
-                "%.2f MB".format(downloadedMB)
+                context.stringResource(MR.strings.chapter_downloading_progress_mb_unknown, downloadedMB)
             } else if (download.pages != null) {
                 context.stringResource(
                     MR.strings.chapter_downloading_progress,

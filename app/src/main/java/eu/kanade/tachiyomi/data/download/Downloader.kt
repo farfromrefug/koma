@@ -589,7 +589,7 @@ class Downloader(
             var lastNotificationTime = 0L
             body.source().use { source ->
                 tmpFile.openOutputStream().use { outputStream ->
-                    val buffer = ByteArray(65536) // 64KB buffer for better performance
+                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
                     var totalRead = 0L
                     var read: Int
 
@@ -944,6 +944,7 @@ class Downloader(
         const val WARNING_NOTIF_TIMEOUT_MS = 30_000L
         const val CHAPTERS_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 15
         private const val DOWNLOADS_QUEUED_WARNING_THRESHOLD = 30
+        private const val DOWNLOAD_BUFFER_SIZE = 65536 // 64KB buffer for efficient file downloads
     }
 }
 

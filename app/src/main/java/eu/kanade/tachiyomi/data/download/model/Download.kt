@@ -47,21 +47,45 @@ data class Download(
 
     @Transient
     val progressFlow = flow {
-        if (pages == null) {
-            emit(0)
-            while (pages == null) {
+        // Check if this is a direct CBZ download (has totalBytes set)
+        if (totalBytes > 0) {
+            // For direct downloads, emit progress based on bytes downloaded
+            while (true) {
+                val progress = if (totalBytes > 0) {
+                    ((downloadedBytes * 100) / totalBytes).toInt()
+                } else {
+                    0
+                }
+                emit(progress)
                 delay(50)
             }
-        }
+        } else {
+            // For page-by-page downloads, use existing logic
+            if (pages == null) {
+                emit(0)
+                while (pages == null) {
+                    delay(50)
+                }
+            }
 
-        val progressFlows = pages!!.map(Page::progressFlow)
-        emitAll(combine(progressFlows) { it.average().toInt() })
+            val progressFlows = pages!!.map(Page::progressFlow)
+            emitAll(combine(progressFlows) { it.average().toInt() })
+        }
     }
         .distinctUntilChanged()
         .debounce(50)
 
     val progress: Int
         get() {
+            // For direct CBZ downloads, calculate based on bytes
+            if (totalBytes > 0) {
+                return if (totalBytes > 0) {
+                    ((downloadedBytes * 100) / totalBytes).toInt()
+                } else {
+                    0
+                }
+            }
+            // For page-by-page downloads, calculate based on pages
             val pages = pages ?: return 0
             return pages.map(Page::progress).average().toInt()
         }

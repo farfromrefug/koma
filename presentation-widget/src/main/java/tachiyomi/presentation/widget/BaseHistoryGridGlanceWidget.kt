@@ -164,7 +164,8 @@ abstract class BaseHistoryGridGlanceWidget(
                         .data(
                             updatesView.coverData,
                         )
-                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED) // Enable memory cache
+                        .diskCachePolicy(CachePolicy.ENABLED) // Explicitly enable disk cache
                         .precision(Precision.EXACT)
                         .size(widthPx, heightPx)
                         .scale(Scale.FILL)

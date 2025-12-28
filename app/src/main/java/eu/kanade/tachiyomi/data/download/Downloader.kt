@@ -570,11 +570,9 @@ class Downloader(
 
         try {
             download.status = Download.State.DOWNLOADING
-
+            val request = download.source.getChapterArchiveDownloadRequest(archiveUrl, download.chapter.toSChapter()) ?: GET(archiveUrl, download.source.headers)
             // Download the archive
-            val response = download.source.client.newCall(
-                GET(archiveUrl, download.source.headers)
-            ).execute()
+            val response = download.source.client.newCall(request).execute()
 
             if (!response.isSuccessful) {
                 throw Exception("Failed to download archive: HTTP ${response.code} - ${response.message}")
@@ -597,7 +595,7 @@ class Downloader(
                         outputStream.write(buffer, 0, read)
                         totalRead += read
                         download.downloadedBytes = totalRead
-                        
+
                         // Throttle notifications to once per 500ms
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastNotificationTime > 500) {
@@ -607,7 +605,7 @@ class Downloader(
                     }
                 }
             }
-            
+
             // Final notification
             notifier.onProgressChange(download)
 

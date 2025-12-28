@@ -564,6 +564,18 @@ abstract class HttpSource : CatalogueSource {
     open fun getChapterArchiveUrl(chapter: SChapter): String? = null
 
     /**
+     * Returns the request to download a chapter archive (CBZ).
+     * The URL should point to a valid CBZ/ZIP archive containing the chapter images.
+     * The archive may optionally include a ComicInfo.xml file for metadata.
+     *
+     * @since extensions-lib 1.6
+     * @param url the URL to download.
+     * @param chapter the chapter to get the download URL for.
+     * @return the request
+     */
+    open fun getChapterArchiveDownloadRequest(url: String, chapter: SChapter): Request? = null
+
+    /**
      * Returns the list of filters for the source.
      */
     override fun getFilterList() = FilterList()

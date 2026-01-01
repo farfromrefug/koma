@@ -1,13 +1,13 @@
 <div align="center">
 
 <a href="https://github.com/farfromrefug/koma">
-    <img src="./.github/assets/logo.png" alt="Koma logo" title="Koma logo" width="80"/>
+    <img src="./logo_full.svg" alt="Koma logo" title="Koma logo" width="80"/>
 </a>
 
 # Koma [App](#)
 
-### Full-featured reader
-Discover and read manga, webtoons, comics, and more – easier than ever on your Android device.
+### Full-featured comics reader
+Discover and read comics, Bds, but also manga, webtoons, and more – easier than ever on your Android device.
 
 <!-- [![Discord server](https://img.shields.io/discord/1195734228319617024.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/mihon) -->
 [![GitHub downloads](https://img.shields.io/github/downloads/farfromrefug/koma/total?label=downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/farfromrefug/koma/releases)
@@ -34,6 +34,7 @@ Discover and read manga, webtoons, comics, and more – easier than ever on your
 * Light and dark themes.
 * Schedule updating your library for new chapters.
 * Create backups locally to read offline or to your desired cloud service.
+* extensions support: https://github.com/farfromrefug/extensions-source
 * Plus much more...
 
 </div>

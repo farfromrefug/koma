@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="108mm"
+   height="108mm"
+   viewBox="0 0 108 108"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.73940797"
+     inkscape:cx="-250.87639"
+     inkscape:cy="108.87089"
+     inkscape:window-width="1920"
+     inkscape:window-height="999"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="text113" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-103.9541,-120.3358)">
+    <g
+       aria-label="K"
+       id="text113"
+       style="font-size:35.2778px;line-height:1.25;font-family:'Baloo 2';-inkscape-font-specification:'Baloo 2, ';stroke-width:0.264583">
+      <path
+         d="m 154.34912,185.25245 q -0.38806,0.10583 -1.09361,0.21166 -0.70556,0.10584 -1.48167,0.10584 -1.65806,0 -2.32833,-0.56445 -0.635,-0.59972 -0.635,-2.08139 v -19.08529 q 0.38805,-0.0705 1.09361,-0.17639 0.74083,-0.10583 1.44639,-0.10583 1.5875,0 2.29305,0.52917 0.70556,0.52916 0.70556,2.08139 v 6.35 l 7.79639,-8.81945 q 2.11667,0 3.0339,0.81139 0.91722,0.77611 0.91722,1.905 0,0.84667 -0.42334,1.5875 -0.38805,0.70556 -1.30527,1.62278 l -5.00945,5.00945 q 2.43417,2.64583 4.37445,4.72722 1.97555,2.08139 3.24555,3.3514 -0.0353,1.37583 -0.9525,2.15194 -0.88194,0.77611 -2.08139,0.77611 -1.30528,0 -2.15194,-0.635 -0.81139,-0.67028 -1.5875,-1.55222 l -5.85612,-6.63223 z"
+         style="font-weight:bold;-inkscape-font-specification:'Baloo 2 Bold'"
+         id="path223" />
+    </g>
+  </g>
+</svg>

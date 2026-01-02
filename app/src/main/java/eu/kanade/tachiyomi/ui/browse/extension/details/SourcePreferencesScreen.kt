@@ -8,6 +8,7 @@ import androidx.appcompat.view.ContextThemeWrapper
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.preference.SharedPreferencesDataStore
+import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.sourcePreferences
 import eu.kanade.tachiyomi.widget.TachiyomiTextInputEditText.Companion.setIncognito
@@ -56,11 +58,25 @@ class SourcePreferencesScreen(val sourceId: Long) : Screen() {
 
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
+        val extensionManager = Injekt.get<ExtensionManager>()
+        val sourceManager = Injekt.get<SourceManager>()
+
+        // Get extension package name for the source
+        val extensionPkgName = extensionManager.getExtensionPackage(sourceId)
+
+        // Reload extension when leaving this screen to apply preference changes
+        DisposableEffect(sourceId) {
+            onDispose {
+                extensionPkgName?.let { pkgName ->
+                    extensionManager.reloadExtension(pkgName)
+                }
+            }
+        }
 
         Scaffold(
             topBar = {
                 AppBar(
-                    title = Injekt.get<SourceManager>().getOrStub(sourceId).toString(),
+                    title = sourceManager.getOrStub(sourceId).toString(),
                     navigateUp = navigator::pop,
                     scrollBehavior = it,
                 )

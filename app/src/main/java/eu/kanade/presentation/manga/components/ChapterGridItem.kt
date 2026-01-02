@@ -317,13 +317,16 @@ private fun BoxScope.ChapterCoverTextOverlay(
     if (readProgress > 0.0) {
         // Linear progress bar
         Row(
-            modifier = Modifier.clip(RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
+            modifier = Modifier
+                .clip(RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
                 .align(Alignment.BottomCenter),
         ) {
             LinearProgressIndicator(
-                progress = readProgress.toFloat().coerceIn(0f, 1f),
+                progress = { readProgress.toFloat().coerceIn(0f, 1f) },
 //                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth().height(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp),
             )
         }
     }
@@ -408,13 +411,16 @@ private fun ChapterGridCover(
         if (readProgress > 0.0) {
             // Linear progress bar
             Row(
-                modifier = Modifier.clip(RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
+                modifier = Modifier
+                    .clip(RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
                     .align(Alignment.BottomCenter),
             ) {
                 LinearProgressIndicator(
-                    progress = readProgress.toFloat().coerceIn(0f, 1f),
+                    progress = { readProgress.toFloat().coerceIn(0f, 1f) },
 //                color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
                 )
             }
         }

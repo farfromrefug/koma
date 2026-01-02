@@ -309,17 +309,33 @@ class ExtensionManager(
     /**
      * Reloads an installed extension to pick up any preference changes.
      * This is useful when extension settings are modified and need to take effect immediately.
+     * The reload happens asynchronously in the background.
      *
      * @param pkgName The package name of the extension to reload.
      */
-    suspend fun reloadExtension(pkgName: String) {
-        // Check if extension is installed
-        installedExtensionMapFlow.value[pkgName] ?: return
+    fun reloadExtension(pkgName: String) {
+        scope.launch {
+            // Check if extension is installed
+            val currentExtension = installedExtensionMapFlow.value[pkgName]
+            if (currentExtension == null) {
+                logcat(LogPriority.WARN) { "Cannot reload extension $pkgName: not installed" }
+                return@launch
+            }
 
-        // Reload the extension from the package
-        ExtensionLoader.loadExtensionFromPkgName(context, pkgName)
-            .let { it as? LoadResult.Success }
-            ?.let { registerUpdatedExtension(it.extension) }
+            // Reload the extension from the package
+            when (val result = ExtensionLoader.loadExtensionFromPkgName(context, pkgName)) {
+                is LoadResult.Success -> {
+                    registerUpdatedExtension(result.extension)
+                    logcat { "Successfully reloaded extension $pkgName" }
+                }
+                is LoadResult.Error -> {
+                    logcat(LogPriority.ERROR) { "Failed to reload extension $pkgName" }
+                }
+                is LoadResult.Untrusted -> {
+                    logcat(LogPriority.WARN) { "Extension $pkgName became untrusted, not reloading" }
+                }
+            }
+        }
     }
 
     /**

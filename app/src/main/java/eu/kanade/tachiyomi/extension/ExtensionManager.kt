@@ -307,6 +307,22 @@ class ExtensionManager(
     }
 
     /**
+     * Reloads an installed extension to pick up any preference changes.
+     * This is useful when extension settings are modified and need to take effect immediately.
+     *
+     * @param pkgName The package name of the extension to reload.
+     */
+    suspend fun reloadExtension(pkgName: String) {
+        // Check if extension is installed
+        installedExtensionMapFlow.value[pkgName] ?: return
+
+        // Reload the extension from the package
+        ExtensionLoader.loadExtensionFromPkgName(context, pkgName)
+            .let { it as? LoadResult.Success }
+            ?.let { registerUpdatedExtension(it.extension) }
+    }
+
+    /**
      * Unregisters the extension in this and the source managers given its package name. Note this
      * method is called for every uninstalled application in the system.
      *

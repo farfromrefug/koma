@@ -325,11 +325,18 @@ class ExtensionManager(
             // Reload the extension from the package
             when (val result = ExtensionLoader.loadExtensionFromPkgName(context, pkgName)) {
                 is LoadResult.Success -> {
+                    // Validate that we got the expected extension
+                    if (result.extension.pkgName != pkgName) {
+                        logcat(LogPriority.ERROR) {
+                            "Extension reload returned unexpected package: expected $pkgName, got ${result.extension.pkgName}"
+                        }
+                        return@launch
+                    }
                     registerUpdatedExtension(result.extension)
                     logcat { "Successfully reloaded extension $pkgName" }
                 }
                 is LoadResult.Error -> {
-                    logcat(LogPriority.ERROR) { "Failed to reload extension $pkgName" }
+                    logcat(LogPriority.ERROR) { "Failed to reload extension $pkgName: extension loading error" }
                 }
                 is LoadResult.Untrusted -> {
                     logcat(LogPriority.WARN) { "Extension $pkgName became untrusted, not reloading" }

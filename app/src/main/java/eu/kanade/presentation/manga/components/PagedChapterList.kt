@@ -163,6 +163,7 @@ fun PagedChapterList(
             items(
                 items = pageItems,
                 key = { it.id },
+                contentType = { "chapter_list_item" },
             ) { item ->
                 MangaChapterListItem(
                     title = if (manga.displayMode == Manga.CHAPTER_DISPLAY_NUMBER) {
@@ -339,6 +340,7 @@ fun PagedChapterGrid(
             items(
                 items = pageItems,
                 key = { it.id },
+                contentType = { "chapter_grid_item" },
             ) { item ->
                 val coverData = MangaCover(
                     mangaId = manga.id,

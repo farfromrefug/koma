@@ -1,7 +1,6 @@
 package eu.kanade.presentation.browse.components
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,6 +12,7 @@ import eu.kanade.presentation.library.components.MangaListItem
 import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
+import tachiyomi.presentation.core.components.FastScrollLazyColumn
 import tachiyomi.presentation.core.util.plus
 
 @Composable
@@ -23,16 +23,22 @@ fun BrowseSourceList(
     onMangaLongClick: (Manga) -> Unit,
     hasLocalManga: (Manga) -> Boolean,
 ) {
-    LazyColumn(
+    FastScrollLazyColumn(
         contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
     ) {
-        item {
+        item(
+            contentType = { "loading" },
+        ) {
             if (mangaList.loadState.prepend is LoadState.Loading) {
                 BrowseSourceLoadingItem()
             }
         }
 
-        items(count = mangaList.itemCount) { index ->
+        items(
+            count = mangaList.itemCount,
+            key = { index -> mangaList[index]?.value?.id ?: index },
+            contentType = { "manga_list" },
+        ) { index ->
             val manga by mangaList[index]?.collectAsState() ?: return@items
             BrowseSourceListItem(
                 manga = manga,
@@ -42,7 +48,9 @@ fun BrowseSourceList(
             )
         }
 
-        item {
+        item(
+            contentType = { "loading" },
+        ) {
             if (mangaList.loadState.refresh is LoadState.Loading || mangaList.loadState.append is LoadState.Loading) {
                 BrowseSourceLoadingItem()
             }

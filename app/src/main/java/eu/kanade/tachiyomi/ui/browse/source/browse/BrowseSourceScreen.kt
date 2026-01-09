@@ -117,6 +117,9 @@ data class BrowseSourceScreen(
         val uiPreferences = remember { Injekt.get<UiPreferences>() }
         val pagedModeEnabled by uiPreferences.pagedModeEnabled().collectAsState()
 
+        // Collect manga list here so we can pass refresh to toolbar
+        val mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
+
         val onHelpClick = { uriHandler.openUri(LocalSource.HELP_URL) }
         val onWebViewClick = f@{
             val source = screenModel.source as? HttpSource ?: return@f
@@ -151,6 +154,7 @@ data class BrowseSourceScreen(
                         onHelpClick = onHelpClick,
                         onSettingsClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
                         onSearch = screenModel::search,
+                        onRefresh = mangaList::refresh,
                     )
 
                     Row(
@@ -224,7 +228,7 @@ data class BrowseSourceScreen(
             BrowseSourceContent(
                 source = screenModel.source,
                 hasLocalManga = { manga -> screenModel.downloadManager.hasLocalManga(manga) },
-                mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems(),
+                mangaList = mangaList,
                 columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
                 displayMode = screenModel.displayMode,
                 snackbarHostState = snackbarHostState,

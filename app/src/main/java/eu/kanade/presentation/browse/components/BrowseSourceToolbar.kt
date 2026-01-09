@@ -36,6 +36,7 @@ fun BrowseSourceToolbar(
     onHelpClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSearch: (String) -> Unit,
+    onRefresh: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
     // Avoid capturing unstable source in actions lambda
@@ -79,6 +80,12 @@ fun BrowseSourceToolbar(
                                 AppBar.OverflowAction(
                                     title = stringResource(MR.strings.action_open_in_web_view),
                                     onClick = onWebViewClick,
+                                ),
+                            )
+                            add(
+                                AppBar.OverflowAction(
+                                    title = stringResource(MR.strings.action_refresh),
+                                    onClick = onRefresh,
                                 ),
                             )
                         }

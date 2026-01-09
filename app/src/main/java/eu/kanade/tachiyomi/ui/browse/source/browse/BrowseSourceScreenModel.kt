@@ -188,6 +188,13 @@ class BrowseSourceScreenModel(
         }
     }
 
+    fun refresh() {
+        // Re-set the current listing to force a new Pager creation
+        // This properly resets the cached paging flow for HTTP sources with pagination
+        val currentListing = state.value.listing
+        mutableState.update { it.copy(listing = currentListing) }
+    }
+
     fun searchGenre(genreName: String) {
         if (source !is CatalogueSource) return
 

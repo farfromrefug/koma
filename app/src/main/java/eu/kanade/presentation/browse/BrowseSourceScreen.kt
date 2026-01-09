@@ -32,7 +32,6 @@ import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
-import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
@@ -64,8 +63,6 @@ fun BrowseSourceContent(
     val getErrorMessage: (LoadState.Error) -> String = { state ->
         with(context) { state.error.formattedMessage }
     }
-
-    val isRefreshing = mangaList.loadState.refresh is LoadState.Loading && mangaList.itemCount > 0
 
     LaunchedEffect(errorState) {
         if (mangaList.itemCount > 0 && errorState != null && errorState is LoadState.Error) {
@@ -125,14 +122,8 @@ fun BrowseSourceContent(
         return
     }
 
-    // Disable pull-to-refresh in paged mode to avoid conflicts with swipe navigation
-    PullRefresh(
-        refreshing = isRefreshing,
-        onRefresh = mangaList::refresh,
-        enabled = !pagedModeEnabled,
-    ) {
-        when (displayMode) {
-            LibraryDisplayMode.ComfortableGrid -> {
+    when (displayMode) {
+        LibraryDisplayMode.ComfortableGrid -> {
                 if (pagedModeEnabled) {
                     PagedBrowseSourceComfortableGrid(
                         mangaList = mangaList,

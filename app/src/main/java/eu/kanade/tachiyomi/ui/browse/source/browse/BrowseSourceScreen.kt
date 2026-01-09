@@ -154,7 +154,7 @@ data class BrowseSourceScreen(
                         onHelpClick = onHelpClick,
                         onSettingsClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
                         onSearch = screenModel::search,
-                        onRefresh = mangaList::refresh,
+                        onRefresh = screenModel::refresh,
                     )
 
                     Row(

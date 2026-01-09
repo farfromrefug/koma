@@ -143,45 +143,46 @@ fun BrowseSourceContent(
                     onMangaLongClick = onMangaLongClick,
                 )
             }
-        }
-        LibraryDisplayMode.List -> {
-            if (pagedModeEnabled) {
-                PagedBrowseSourceList(
-                    mangaList = mangaList,
-                    hasLocalManga = hasLocalManga,
-                    contentPadding = contentPadding,
-                    onMangaClick = onMangaClick,
-                    onMangaLongClick = onMangaLongClick,
-                )
-            } else {
-                BrowseSourceList(
-                    mangaList = mangaList,
-                    hasLocalManga = hasLocalManga,
-                    contentPadding = contentPadding,
-                    onMangaClick = onMangaClick,
-                    onMangaLongClick = onMangaLongClick,
-                )
             }
-        }
-        LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
-            if (pagedModeEnabled) {
-                PagedBrowseSourceCompactGrid(
-                    mangaList = mangaList,
-                    columns = columns,
-                    hasLocalManga = hasLocalManga,
-                    contentPadding = contentPadding,
-                    onMangaClick = onMangaClick,
-                    onMangaLongClick = onMangaLongClick,
-                )
-            } else {
-                BrowseSourceCompactGrid(
-                    mangaList = mangaList,
-                    hasLocalManga = hasLocalManga,
-                    columns = columns,
-                    contentPadding = contentPadding,
-                    onMangaClick = onMangaClick,
-                    onMangaLongClick = onMangaLongClick,
-                )
+            LibraryDisplayMode.List -> {
+                if (pagedModeEnabled) {
+                    PagedBrowseSourceList(
+                        mangaList = mangaList,
+                        hasLocalManga = hasLocalManga,
+                        contentPadding = contentPadding,
+                        onMangaClick = onMangaClick,
+                        onMangaLongClick = onMangaLongClick,
+                    )
+                } else {
+                    BrowseSourceList(
+                        mangaList = mangaList,
+                        hasLocalManga = hasLocalManga,
+                        contentPadding = contentPadding,
+                        onMangaClick = onMangaClick,
+                        onMangaLongClick = onMangaLongClick,
+                    )
+                }
+            }
+            LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
+                if (pagedModeEnabled) {
+                    PagedBrowseSourceCompactGrid(
+                        mangaList = mangaList,
+                        columns = columns,
+                        hasLocalManga = hasLocalManga,
+                        contentPadding = contentPadding,
+                        onMangaClick = onMangaClick,
+                        onMangaLongClick = onMangaLongClick,
+                    )
+                } else {
+                    BrowseSourceCompactGrid(
+                        mangaList = mangaList,
+                        hasLocalManga = hasLocalManga,
+                        columns = columns,
+                        contentPadding = contentPadding,
+                        onMangaClick = onMangaClick,
+                        onMangaLongClick = onMangaLongClick,
+                    )
+                }
             }
         }
     }

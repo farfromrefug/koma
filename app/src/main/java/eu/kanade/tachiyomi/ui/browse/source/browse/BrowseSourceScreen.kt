@@ -117,7 +117,7 @@ data class BrowseSourceScreen(
         val uiPreferences = remember { Injekt.get<UiPreferences>() }
         val pagedModeEnabled by uiPreferences.pagedModeEnabled().collectAsState()
 
-        // Collect manga list here so we can pass refresh to toolbar
+        // Collect manga list once for performance and to provide refresh capability to toolbar
         val mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
 
         val onHelpClick = { uriHandler.openUri(LocalSource.HELP_URL) }

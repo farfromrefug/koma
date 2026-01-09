@@ -125,6 +125,7 @@ fun BrowseSourceContent(
         return
     }
 
+    // Disable pull-to-refresh in paged mode to avoid conflicts with swipe navigation
     PullRefresh(
         refreshing = isRefreshing,
         onRefresh = mangaList::refresh,

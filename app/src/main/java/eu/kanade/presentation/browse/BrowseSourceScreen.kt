@@ -124,25 +124,25 @@ fun BrowseSourceContent(
 
     when (displayMode) {
         LibraryDisplayMode.ComfortableGrid -> {
-                if (pagedModeEnabled) {
-                    PagedBrowseSourceComfortableGrid(
-                        mangaList = mangaList,
-                        columns = columns,
-                        hasLocalManga = hasLocalManga,
-                        contentPadding = contentPadding,
-                        onMangaClick = onMangaClick,
-                        onMangaLongClick = onMangaLongClick,
-                    )
-                } else {
-                    BrowseSourceComfortableGrid(
-                        mangaList = mangaList,
-                        columns = columns,
-                        hasLocalManga = hasLocalManga,
-                        contentPadding = contentPadding,
-                        onMangaClick = onMangaClick,
-                        onMangaLongClick = onMangaLongClick,
-                    )
-                }
+            if (pagedModeEnabled) {
+                PagedBrowseSourceComfortableGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    hasLocalManga = hasLocalManga,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            } else {
+                BrowseSourceComfortableGrid(
+                    mangaList = mangaList,
+                    columns = columns,
+                    hasLocalManga = hasLocalManga,
+                    contentPadding = contentPadding,
+                    onMangaClick = onMangaClick,
+                    onMangaLongClick = onMangaLongClick,
+                )
+            }
             }
             LibraryDisplayMode.List -> {
                 if (pagedModeEnabled) {

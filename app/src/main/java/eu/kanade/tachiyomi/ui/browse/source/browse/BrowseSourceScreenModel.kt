@@ -121,12 +121,12 @@ class BrowseSourceScreenModel(
     }
 
     /**
-     * Flow of Pager flow tied to [State.listing]
+     * Flow of Pager flow tied to [State.listing] and [State.refreshTrigger]
      */
     private val hideInLibraryItems = sourcePreferences.hideInLibraryItems().get()
-    val mangaPagerFlowFlow = state.map { it.listing }
+    val mangaPagerFlowFlow = state.map { Pair(it.listing, it.refreshTrigger) }
         .distinctUntilChanged()
-        .map { listing ->
+        .map { (listing, _) ->
             Pager(PagingConfig(pageSize = 25)) {
                 getRemoteManga(sourceId, listing.query ?: "", listing.filters)
             }.flow.map { pagingData ->
@@ -189,10 +189,9 @@ class BrowseSourceScreenModel(
     }
 
     fun refresh() {
-        // Re-set the current listing to force a new Pager creation
+        // Increment refresh trigger to force a new Pager creation via distinctUntilChanged
         // This properly resets the cached paging flow for HTTP sources with pagination
-        val currentListing = state.value.listing
-        mutableState.update { it.copy(listing = currentListing) }
+        mutableState.update { it.copy(refreshTrigger = it.refreshTrigger + 1) }
     }
 
     fun searchGenre(genreName: String) {
@@ -436,6 +435,7 @@ class BrowseSourceScreenModel(
         val filters: FilterList = FilterList(),
         val toolbarQuery: String? = null,
         val dialog: Dialog? = null,
+        val refreshTrigger: Long = 0L,
     ) {
         val isUserQuery get() = listing is Listing.Search && !listing.query.isNullOrEmpty()
     }

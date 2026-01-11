@@ -123,11 +123,11 @@ jobs:
 
           echo "Updating version to: versionName=$VERSION_NAME, versionCode=$VERSION_CODE"
 
-          # Update versionCode (uses basic regex - [0-9]+ matches one or more digits)
-          sed -i "s/versionCode = [0-9]\+/versionCode = $VERSION_CODE/" app/build.gradle.kts
+          # Update versionCode (extended regex - [0-9]+ matches one or more digits)
+          sed -i -E "s/versionCode = [0-9]+/versionCode = $VERSION_CODE/" app/build.gradle.kts
 
-          # Update versionName (uses basic regex - [^"]* matches any non-quote characters)
-          sed -i "s/versionName = \"[^\"]\+\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+          # Update versionName (extended regex - [^"]+ matches one or more non-quote characters)
+          sed -i -E "s/versionName = \"[^\"]+\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
 
           # Verify the updates were successful
           UPDATED_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)

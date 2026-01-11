@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import eu.kanade.tachiyomi.util.HtmlToMarkdownConverter
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.metadata.comicinfo.ComicInfo
 import tachiyomi.core.metadata.comicinfo.ComicInfoPublishingStatus
@@ -53,7 +54,7 @@ fun Manga.toSManga(): SManga = SManga.create().also {
 fun Manga.copyFrom(other: SManga): Manga {
     val author = other.author ?: author
     val artist = other.artist ?: artist
-    val description = other.description ?: description
+    val description = HtmlToMarkdownConverter.convert(other.description) ?: description
     val genres = if (other.genre != null) {
         other.getGenres()
     } else {

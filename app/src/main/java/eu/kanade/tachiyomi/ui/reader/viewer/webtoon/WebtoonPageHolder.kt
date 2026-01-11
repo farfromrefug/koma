@@ -10,6 +10,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updateMargins
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import com.davemorrissey.labs.subscaleview.decoder.BorderDetectionConfig
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
@@ -203,6 +204,11 @@ class WebtoonPageHolder(
                         zoomDuration = viewer.config.doubleTapAnimDuration,
                         minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
                         cropBorders = viewer.config.imageCropBorders,
+                        borderDetectionConfig = BorderDetectionConfig(
+                            viewer.config.cropBordersMaxDimension,
+                            viewer.config.cropBordersThreshold,
+                            viewer.config.cropBordersFilledRatioLimit,
+                        ),
                     ),
                 )
                 removeErrorLayout()

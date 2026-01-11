@@ -838,6 +838,10 @@ class ReaderViewModel @JvmOverloads constructor(
         mutableState.update { it.copy(dialog = Dialog.Settings) }
     }
 
+    fun openCropBordersSettingsDialog() {
+        mutableState.update { it.copy(dialog = Dialog.CropBordersSettings) }
+    }
+
     fun openChapterInfoDialog() {
         val dbChapter = state.value.currentChapter?.chapter ?: return
         val domainChapter = dbChapter.toDomainChapter() ?: return
@@ -1113,6 +1117,7 @@ class ReaderViewModel @JvmOverloads constructor(
     sealed interface Dialog {
         data object Loading : Dialog
         data object Settings : Dialog
+        data object CropBordersSettings : Dialog
         data object ReadingModeSelect : Dialog
         data object OrientationModeSelect : Dialog
         data class PageActions(val page: ReaderPage) : Dialog

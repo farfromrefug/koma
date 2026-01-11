@@ -285,11 +285,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         setDoubleTapZoomDuration(config.zoomDuration.getSystemScaledDuration())
         setMinimumScaleType(config.minimumScaleType)
         setMinimumDpi(1) // Just so that very small image will be fit for initial load
-        setCropBorders(config.cropBorders, BorderDetectionConfig(
-            500,   // maxBorderDetectionDimension
-            0.95,   // threshold
-            0.15f   // filledRatioLimit
-        ))
+        setCropBorders(config.cropBorders, config.borderDetectionConfig)
         setOnImageEventListener(
             object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
                 override fun onReady() {
@@ -430,6 +426,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         val cropBorders: Boolean = false,
         val zoomStartPosition: ZoomStartPosition = ZoomStartPosition.CENTER,
         val landscapeZoom: Boolean = false,
+        val borderDetectionConfig: BorderDetectionConfig = BorderDetectionConfig(500, 0.95, 0.15f),
     )
 
     enum class ZoomStartPosition {

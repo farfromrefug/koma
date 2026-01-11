@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
 import androidx.core.view.isVisible
+import com.davemorrissey.labs.subscaleview.decoder.BorderDetectionConfig
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
@@ -171,6 +172,11 @@ class PagerPageHolder(
                         cropBorders = viewer.config.imageCropBorders,
                         zoomStartPosition = viewer.config.imageZoomType,
                         landscapeZoom = viewer.config.landscapeZoom,
+                        borderDetectionConfig = BorderDetectionConfig(
+                            viewer.config.cropBordersMaxDimension,
+                            viewer.config.cropBordersThreshold,
+                            viewer.config.cropBordersFilledRatioLimit,
+                        ),
                     ),
                 )
                 if (!isAnimated) {

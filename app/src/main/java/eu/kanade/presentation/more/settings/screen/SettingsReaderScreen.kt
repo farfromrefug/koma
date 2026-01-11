@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.pluralStringResource
@@ -224,94 +225,159 @@ object SettingsReaderScreen : SearchableSettings {
         val imageScaleTypePref = readerPreferences.imageScaleType()
         val dualPageSplitPref = readerPreferences.dualPageSplitPaged()
         val rotateToFitPref = readerPreferences.dualPageRotateToFit()
+        val cropBordersPref = readerPreferences.cropBorders()
 
         val navMode by navModePref.collectAsState()
         val imageScaleType by imageScaleTypePref.collectAsState()
         val dualPageSplit by dualPageSplitPref.collectAsState()
         val rotateToFit by rotateToFitPref.collectAsState()
+        val cropBorders by cropBordersPref.collectAsState()
+
+        val cropBordersMaxDimensionPref = readerPreferences.cropBordersMaxDimension()
+        val cropBordersMaxDimension by cropBordersMaxDimensionPref.collectAsState()
+
+        val cropBordersThresholdPref = readerPreferences.cropBordersThreshold()
+        val cropBordersThreshold by cropBordersThresholdPref.collectAsState()
+
+        val cropBordersFilledRatioLimitPref = readerPreferences.cropBordersFilledRatioLimit()
+        val cropBordersFilledRatioLimit by cropBordersFilledRatioLimitPref.collectAsState()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pager_viewer),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = navModePref,
-                    entries = ReaderPreferences.TapZones
-                        .mapIndexed { index, it -> index to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_viewer_nav),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.pagerNavInverted(),
-                    entries = persistentListOf(
-                        ReaderPreferences.TappingInvertMode.NONE,
-                        ReaderPreferences.TappingInvertMode.HORIZONTAL,
-                        ReaderPreferences.TappingInvertMode.VERTICAL,
-                        ReaderPreferences.TappingInvertMode.BOTH,
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = navModePref,
+                        entries = ReaderPreferences.TapZones
+                            .mapIndexed { index, it -> index to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_viewer_nav),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.pagerNavInverted(),
+                        entries = persistentListOf(
+                            ReaderPreferences.TappingInvertMode.NONE,
+                            ReaderPreferences.TappingInvertMode.HORIZONTAL,
+                            ReaderPreferences.TappingInvertMode.VERTICAL,
+                            ReaderPreferences.TappingInvertMode.BOTH,
+                        )
+                            .associateWith { stringResource(it.titleRes) }
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_read_with_tapping_inverted),
+                        enabled = navMode != 5,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = imageScaleTypePref,
+                        entries = ReaderPreferences.ImageScaleType
+                            .mapIndexed { index, it -> index + 1 to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_image_scale_type),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.zoomStart(),
+                        entries = ReaderPreferences.ZoomStart
+                            .mapIndexed { index, it -> index + 1 to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_zoom_start),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = cropBordersPref,
+                        title = stringResource(MR.strings.pref_crop_borders),
+                    ),
+                )
+                if (cropBorders) {
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = cropBordersMaxDimension,
+                            valueRange = 100..2000,
+                            title = stringResource(MR.strings.pref_crop_borders_max_dimension),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_max_dimension_summary),
+                            valueString = cropBordersMaxDimension.toString(),
+                            onValueChanged = { cropBordersMaxDimensionPref.set(it) },
+                        ),
                     )
-                        .associateWith { stringResource(it.titleRes) }
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_read_with_tapping_inverted),
-                    enabled = navMode != 5,
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = imageScaleTypePref,
-                    entries = ReaderPreferences.ImageScaleType
-                        .mapIndexed { index, it -> index + 1 to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_image_scale_type),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.zoomStart(),
-                    entries = ReaderPreferences.ZoomStart
-                        .mapIndexed { index, it -> index + 1 to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_zoom_start),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.cropBorders(),
-                    title = stringResource(MR.strings.pref_crop_borders),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.landscapeZoom(),
-                    title = stringResource(MR.strings.pref_landscape_zoom),
-                    enabled = imageScaleType == 1,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.navigateToPan(),
-                    title = stringResource(MR.strings.pref_navigate_pan),
-                    enabled = navMode != 5,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = dualPageSplitPref,
-                    title = stringResource(MR.strings.pref_dual_page_split),
-                    onValueChanged = {
-                        rotateToFitPref.set(false)
-                        true
-                    },
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.dualPageInvertPaged(),
-                    title = stringResource(MR.strings.pref_dual_page_invert),
-                    subtitle = stringResource(MR.strings.pref_dual_page_invert_summary),
-                    enabled = dualPageSplit,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = rotateToFitPref,
-                    title = stringResource(MR.strings.pref_page_rotate),
-                    onValueChanged = {
-                        dualPageSplitPref.set(false)
-                        true
-                    },
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.dualPageRotateToFitInvert(),
-                    title = stringResource(MR.strings.pref_page_rotate_invert),
-                    enabled = rotateToFit,
-                ),
-            ),
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = (cropBordersThreshold * 100).toInt(),
+                            valueRange = 50..100,
+                            title = stringResource(MR.strings.pref_crop_borders_threshold),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_threshold_summary),
+                            valueString = "%.2f".format(cropBordersThreshold),
+                            onValueChanged = { cropBordersThresholdPref.set(it / 100f) },
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = (cropBordersFilledRatioLimit * 100).toInt(),
+                            valueRange = 0..50,
+                            title = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit_summary),
+                            valueString = "%.2f".format(cropBordersFilledRatioLimit),
+                            onValueChanged = { cropBordersFilledRatioLimitPref.set(it / 100f) },
+                        ),
+                    )
+                }
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.landscapeZoom(),
+                        title = stringResource(MR.strings.pref_landscape_zoom),
+                        enabled = imageScaleType == 1,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.navigateToPan(),
+                        title = stringResource(MR.strings.pref_navigate_pan),
+                        enabled = navMode != 5,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = dualPageSplitPref,
+                        title = stringResource(MR.strings.pref_dual_page_split),
+                        onValueChanged = {
+                            rotateToFitPref.set(false)
+                            true
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.dualPageInvertPaged(),
+                        title = stringResource(MR.strings.pref_dual_page_invert),
+                        subtitle = stringResource(MR.strings.pref_dual_page_invert_summary),
+                        enabled = dualPageSplit,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = rotateToFitPref,
+                        title = stringResource(MR.strings.pref_page_rotate),
+                        onValueChanged = {
+                            dualPageSplitPref.set(false)
+                            true
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.dualPageRotateToFitInvert(),
+                        title = stringResource(MR.strings.pref_page_rotate_invert),
+                        enabled = rotateToFit,
+                    ),
+                )
+            }.toImmutableList(),
         )
     }
 
@@ -323,95 +389,160 @@ object SettingsReaderScreen : SearchableSettings {
         val dualPageSplitPref = readerPreferences.dualPageSplitWebtoon()
         val rotateToFitPref = readerPreferences.dualPageRotateToFitWebtoon()
         val webtoonSidePaddingPref = readerPreferences.webtoonSidePadding()
+        val cropBordersWebtoonPref = readerPreferences.cropBordersWebtoon()
 
         val navMode by navModePref.collectAsState()
         val dualPageSplit by dualPageSplitPref.collectAsState()
         val rotateToFit by rotateToFitPref.collectAsState()
         val webtoonSidePadding by webtoonSidePaddingPref.collectAsState()
+        val cropBordersWebtoon by cropBordersWebtoonPref.collectAsState()
+
+        val cropBordersMaxDimensionWebtoonPref = readerPreferences.cropBordersMaxDimensionWebtoon()
+        val cropBordersMaxDimensionWebtoon by cropBordersMaxDimensionWebtoonPref.collectAsState()
+
+        val cropBordersThresholdWebtoonPref = readerPreferences.cropBordersThresholdWebtoon()
+        val cropBordersThresholdWebtoon by cropBordersThresholdWebtoonPref.collectAsState()
+
+        val cropBordersFilledRatioLimitWebtoonPref = readerPreferences.cropBordersFilledRatioLimitWebtoon()
+        val cropBordersFilledRatioLimitWebtoon by cropBordersFilledRatioLimitWebtoonPref.collectAsState()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webtoon_viewer),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = navModePref,
-                    entries = ReaderPreferences.TapZones
-                        .mapIndexed { index, it -> index to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_viewer_nav),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.webtoonNavInverted(),
-                    entries = persistentListOf(
-                        ReaderPreferences.TappingInvertMode.NONE,
-                        ReaderPreferences.TappingInvertMode.HORIZONTAL,
-                        ReaderPreferences.TappingInvertMode.VERTICAL,
-                        ReaderPreferences.TappingInvertMode.BOTH,
-                    )
-                        .associateWith { stringResource(it.titleRes) }
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_read_with_tapping_inverted),
-                    enabled = navMode != 5,
-                ),
-                Preference.PreferenceItem.SliderPreference(
-                    value = webtoonSidePadding,
-                    valueRange = ReaderPreferences.let {
-                        it.WEBTOON_PADDING_MIN..it.WEBTOON_PADDING_MAX
-                    },
-                    title = stringResource(MR.strings.pref_webtoon_side_padding),
-                    valueString = numberFormat.format(webtoonSidePadding / 100f),
-                    onValueChanged = { webtoonSidePaddingPref.set(it) },
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.readerHideThreshold(),
-                    entries = persistentMapOf(
-                        ReaderPreferences.ReaderHideThreshold.HIGHEST to stringResource(MR.strings.pref_highest),
-                        ReaderPreferences.ReaderHideThreshold.HIGH to stringResource(MR.strings.pref_high),
-                        ReaderPreferences.ReaderHideThreshold.LOW to stringResource(MR.strings.pref_low),
-                        ReaderPreferences.ReaderHideThreshold.LOWEST to stringResource(MR.strings.pref_lowest),
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = navModePref,
+                        entries = ReaderPreferences.TapZones
+                            .mapIndexed { index, it -> index to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_viewer_nav),
                     ),
-                    title = stringResource(MR.strings.pref_hide_threshold),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.cropBordersWebtoon(),
-                    title = stringResource(MR.strings.pref_crop_borders),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = dualPageSplitPref,
-                    title = stringResource(MR.strings.pref_dual_page_split),
-                    onValueChanged = {
-                        rotateToFitPref.set(false)
-                        true
-                    },
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.dualPageInvertWebtoon(),
-                    title = stringResource(MR.strings.pref_dual_page_invert),
-                    subtitle = stringResource(MR.strings.pref_dual_page_invert_summary),
-                    enabled = dualPageSplit,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = rotateToFitPref,
-                    title = stringResource(MR.strings.pref_page_rotate),
-                    onValueChanged = {
-                        dualPageSplitPref.set(false)
-                        true
-                    },
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.dualPageRotateToFitInvertWebtoon(),
-                    title = stringResource(MR.strings.pref_page_rotate_invert),
-                    enabled = rotateToFit,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.webtoonDoubleTapZoomEnabled(),
-                    title = stringResource(MR.strings.pref_double_tap_zoom),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.webtoonDisableZoomOut(),
-                    title = stringResource(MR.strings.pref_webtoon_disable_zoom_out),
-                ),
-            ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.webtoonNavInverted(),
+                        entries = persistentListOf(
+                            ReaderPreferences.TappingInvertMode.NONE,
+                            ReaderPreferences.TappingInvertMode.HORIZONTAL,
+                            ReaderPreferences.TappingInvertMode.VERTICAL,
+                            ReaderPreferences.TappingInvertMode.BOTH,
+                        )
+                            .associateWith { stringResource(it.titleRes) }
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_read_with_tapping_inverted),
+                        enabled = navMode != 5,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SliderPreference(
+                        value = webtoonSidePadding,
+                        valueRange = ReaderPreferences.let {
+                            it.WEBTOON_PADDING_MIN..it.WEBTOON_PADDING_MAX
+                        },
+                        title = stringResource(MR.strings.pref_webtoon_side_padding),
+                        valueString = numberFormat.format(webtoonSidePadding / 100f),
+                        onValueChanged = { webtoonSidePaddingPref.set(it) },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.readerHideThreshold(),
+                        entries = persistentMapOf(
+                            ReaderPreferences.ReaderHideThreshold.HIGHEST to stringResource(MR.strings.pref_highest),
+                            ReaderPreferences.ReaderHideThreshold.HIGH to stringResource(MR.strings.pref_high),
+                            ReaderPreferences.ReaderHideThreshold.LOW to stringResource(MR.strings.pref_low),
+                            ReaderPreferences.ReaderHideThreshold.LOWEST to stringResource(MR.strings.pref_lowest),
+                        ),
+                        title = stringResource(MR.strings.pref_hide_threshold),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = cropBordersWebtoonPref,
+                        title = stringResource(MR.strings.pref_crop_borders),
+                    ),
+                )
+                if (cropBordersWebtoon) {
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = cropBordersMaxDimensionWebtoon,
+                            valueRange = 100..2000,
+                            title = stringResource(MR.strings.pref_crop_borders_max_dimension),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_max_dimension_summary),
+                            valueString = cropBordersMaxDimensionWebtoon.toString(),
+                            onValueChanged = { cropBordersMaxDimensionWebtoonPref.set(it) },
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = (cropBordersThresholdWebtoon * 100).toInt(),
+                            valueRange = 50..100,
+                            title = stringResource(MR.strings.pref_crop_borders_threshold),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_threshold_summary),
+                            valueString = "%.2f".format(cropBordersThresholdWebtoon),
+                            onValueChanged = { cropBordersThresholdWebtoonPref.set(it / 100f) },
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SliderPreference(
+                            value = (cropBordersFilledRatioLimitWebtoon * 100).toInt(),
+                            valueRange = 0..50,
+                            title = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit),
+                            subtitle = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit_summary),
+                            valueString = "%.2f".format(cropBordersFilledRatioLimitWebtoon),
+                            onValueChanged = { cropBordersFilledRatioLimitWebtoonPref.set(it / 100f) },
+                        ),
+                    )
+                }
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = dualPageSplitPref,
+                        title = stringResource(MR.strings.pref_dual_page_split),
+                        onValueChanged = {
+                            rotateToFitPref.set(false)
+                            true
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.dualPageInvertWebtoon(),
+                        title = stringResource(MR.strings.pref_dual_page_invert),
+                        subtitle = stringResource(MR.strings.pref_dual_page_invert_summary),
+                        enabled = dualPageSplit,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = rotateToFitPref,
+                        title = stringResource(MR.strings.pref_page_rotate),
+                        onValueChanged = {
+                            dualPageSplitPref.set(false)
+                            true
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.dualPageRotateToFitInvertWebtoon(),
+                        title = stringResource(MR.strings.pref_page_rotate_invert),
+                        enabled = rotateToFit,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.webtoonDoubleTapZoomEnabled(),
+                        title = stringResource(MR.strings.pref_double_tap_zoom),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.webtoonDisableZoomOut(),
+                        title = stringResource(MR.strings.pref_webtoon_disable_zoom_out),
+                    ),
+                )
+            }.toImmutableList(),
         )
     }
 

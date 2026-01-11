@@ -4,6 +4,7 @@ import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.util.HtmlToMarkdownConverter
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.FetchInterval
@@ -95,7 +96,7 @@ class UpdateManga(
                 coverLastModified = coverLastModified,
                 author = remoteManga.author,
                 artist = remoteManga.artist,
-                description = remoteManga.description,
+                description = HtmlToMarkdownConverter.convert(remoteManga.description),
                 genre = remoteManga.getGenres(),
                 moods = remoteManga.getMoods(),
                 tags = remoteManga.getTags(),

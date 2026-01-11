@@ -69,8 +69,8 @@ fun CropBordersSettingsDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 when (page) {
-                    0 -> ScaleTypePage(screenModel)
-                    1 -> CropBordersPage(screenModel)
+                    0 -> CropBordersPage(screenModel)
+                    1 -> ScaleTypePage(screenModel)
                     2 -> ZoomStartPage(screenModel)
                 }
             }
@@ -80,8 +80,6 @@ fun CropBordersSettingsDialog(
 
 @Composable
 private fun ScaleTypePage(screenModel: ReaderSettingsScreenModel) {
-    HeadingItem(MR.strings.pref_image_scale_type)
-
     val imageScaleType by screenModel.preferences.imageScaleType().collectAsState()
     SettingsChipRow(MR.strings.pref_image_scale_type) {
         ReaderPreferences.ImageScaleType.mapIndexed { index, it ->
@@ -194,8 +192,6 @@ private fun CropBordersPage(screenModel: ReaderSettingsScreenModel) {
 
 @Composable
 private fun ZoomStartPage(screenModel: ReaderSettingsScreenModel) {
-    HeadingItem(MR.strings.pref_zoom_start)
-
     val zoomStart by screenModel.preferences.zoomStart().collectAsState()
     SettingsChipRow(MR.strings.pref_zoom_start) {
         ReaderPreferences.ZoomStart.mapIndexed { index, it ->

@@ -1,5 +1,7 @@
 package eu.kanade.presentation.reader.appbars
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
@@ -11,12 +13,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ReaderBottomBar(
     readingMode: ReadingMode,
@@ -25,6 +29,7 @@ fun ReaderBottomBar(
     onClickOrientation: () -> Unit,
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
+    onLongClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -48,7 +53,14 @@ fun ReaderBottomBar(
             )
         }
 
-        IconButton(onClick = onClickCropBorder) {
+        IconButton(
+            onClick = onClickCropBorder,
+            modifier = Modifier.combinedClickable(
+                onClick = onClickCropBorder,
+                onLongClick = onLongClickCropBorder,
+                role = Role.Button,
+            ),
+        ) {
             Icon(
                 painter = painterResource(if (cropEnabled) R.drawable.ic_crop_24dp else R.drawable.ic_crop_off_24dp),
                 contentDescription = stringResource(MR.strings.pref_crop_borders),

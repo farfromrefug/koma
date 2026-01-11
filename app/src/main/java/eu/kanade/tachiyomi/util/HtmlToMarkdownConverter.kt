@@ -65,7 +65,11 @@ object HtmlToMarkdownConverter {
             "u" -> "_${convertElement(element)}_"
             "code" -> "`${convertElement(element)}`"
             "pre" -> "```\n${element.text()}\n```\n\n"
-            "blockquote" -> "> ${convertElement(element).replace("\n", "\n> ")}\n\n"
+            "blockquote" -> {
+                val content = convertElement(element).trim()
+                val lines = content.split("\n")
+                lines.joinToString("\n") { "> $it" } + "\n\n"
+            }
             "a" -> {
                 val href = element.attr("href")
                 val text = convertElement(element)

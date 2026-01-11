@@ -3,12 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       bump_type:
-        description: 'Version bump type (none for existing tag, or patch/minor/major for new release)'
+        description: 'Version bump type for new release'
         required: true
-        default: 'none'
+        default: 'patch'
         type: choice
         options:
-          - none
           - patch
           - minor
           - major
@@ -64,16 +63,17 @@ jobs:
             BUMP_TYPE="${{ github.event.inputs.bump_type }}"
             echo "is_manual=true" >> $GITHUB_OUTPUT
 
-            if [[ "$BUMP_TYPE" == "none" ]]; then
-              echo "Error: Manual release requires a bump type (patch/minor/major)"
-              exit 1
-            fi
-
             # Get current version from build.gradle.kts
             CURRENT_VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
             CURRENT_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
 
             echo "Current version: $CURRENT_VERSION (code: $CURRENT_VERSION_CODE)"
+
+            # Validate version format (must be X.Y.Z)
+            if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Error: Current version '$CURRENT_VERSION' is not in the expected X.Y.Z format"
+              exit 1
+            fi
 
             # Parse current version
             IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
@@ -117,11 +117,25 @@ jobs:
 
           echo "Updating version to: versionName=$VERSION_NAME, versionCode=$VERSION_CODE"
 
-          # Update versionCode
+          # Update versionCode (assumes the format "versionCode = NUMBER" on its own line)
           sed -i "s/versionCode = [0-9]\+/versionCode = $VERSION_CODE/" app/build.gradle.kts
 
-          # Update versionName
+          # Update versionName (assumes the format "versionName = "X.Y.Z"" on its own line)
           sed -i "s/versionName = \"[^\"]*\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+
+          # Verify the updates were successful
+          UPDATED_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+          UPDATED_VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+
+          if [[ "$UPDATED_VERSION_CODE" != "$VERSION_CODE" ]]; then
+            echo "Error: Failed to update versionCode. Expected $VERSION_CODE, got $UPDATED_VERSION_CODE"
+            exit 1
+          fi
+
+          if [[ "$UPDATED_VERSION_NAME" != "$VERSION_NAME" ]]; then
+            echo "Error: Failed to update versionName. Expected $VERSION_NAME, got $UPDATED_VERSION_NAME"
+            exit 1
+          fi
 
           # Show the changes
           echo "Updated build.gradle.kts:"
@@ -151,23 +165,21 @@ jobs:
 
               echo "Pushed version changes and created tag ${{ steps.version.outputs.tag }}"
             else
-              # For tag-based releases, push the version update to the branch
+              # For tag-based releases, push the version update to the default branch
               # Note: The tag already exists, but we commit the version update to the branch
 
-              # Try to determine the branch this tag was created from
-              BRANCH=$(git branch -r --contains HEAD | grep -v HEAD | head -1 | sed 's/.*origin\///' | xargs)
-
-              if [[ -z "$BRANCH" ]]; then
-                echo "Could not determine branch for tag, trying main"
-                BRANCH="main"
+              # Get the default branch from GitHub API or use main as fallback
+              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+              if [[ -z "$DEFAULT_BRANCH" ]]; then
+                DEFAULT_BRANCH="main"
               fi
 
-              echo "Pushing version update to branch: $BRANCH"
+              echo "Pushing version update to default branch: $DEFAULT_BRANCH"
 
-              # Push to the branch
-              git push origin HEAD:refs/heads/$BRANCH
+              # Push to the default branch
+              git push origin HEAD:refs/heads/$DEFAULT_BRANCH
 
-              echo "Pushed version changes to branch $BRANCH"
+              echo "Pushed version changes to branch $DEFAULT_BRANCH"
             fi
           fi
 

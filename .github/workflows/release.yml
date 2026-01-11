@@ -1,6 +1,17 @@
 name: Release
 on:
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (none for existing tag, or patch/minor/major for new release)'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
   push:
     tags:
       - v*
@@ -10,27 +21,184 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare_version:
+    if: github.repository == 'farfromrefug/koma'
+    name: Prepare version
+    runs-on: 'ubuntu-24.04'
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      is_manual: ${{ steps.version.outputs.is_manual }}
+      commit_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version
+        id: version
+        run: |
+          set -e
+
+          # Check if triggered by tag push
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag-based release
+            TAG="${GITHUB_REF/refs\/tags\//}"
+            VERSION_NAME="${TAG#v}"
+            echo "is_manual=false" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+
+            # Extract current versionCode from build.gradle.kts
+            CURRENT_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+            NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+            echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+
+            echo "Tag-based release: $TAG (versionName: $VERSION_NAME, versionCode: $NEW_VERSION_CODE)"
+          else
+            # Manual workflow_dispatch release
+            BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+            echo "is_manual=true" >> $GITHUB_OUTPUT
+
+            if [[ "$BUMP_TYPE" == "none" ]]; then
+              echo "Error: Manual release requires a bump type (patch/minor/major)"
+              exit 1
+            fi
+
+            # Get current version from build.gradle.kts
+            CURRENT_VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+            CURRENT_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+
+            echo "Current version: $CURRENT_VERSION (code: $CURRENT_VERSION_CODE)"
+
+            # Parse current version
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR="${VERSION_PARTS[0]}"
+            MINOR="${VERSION_PARTS[1]}"
+            PATCH="${VERSION_PARTS[2]}"
+
+            # Bump version based on bump_type
+            case "$BUMP_TYPE" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+            NEW_TAG="v$NEW_VERSION"
+
+            echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+
+            echo "New version: $NEW_VERSION (code: $NEW_VERSION_CODE, tag: $NEW_TAG)"
+          fi
+
+      - name: Update version in build.gradle.kts
+        run: |
+          set -e
+
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          VERSION_CODE="${{ steps.version.outputs.version_code }}"
+
+          echo "Updating version to: versionName=$VERSION_NAME, versionCode=$VERSION_CODE"
+
+          # Update versionCode
+          sed -i "s/versionCode = [0-9]\+/versionCode = $VERSION_CODE/" app/build.gradle.kts
+
+          # Update versionName
+          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+
+          # Show the changes
+          echo "Updated build.gradle.kts:"
+          grep -A 2 "versionCode = " app/build.gradle.kts | head -3
+
+      - name: Commit version changes
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet app/build.gradle.kts; then
+            echo "No changes to commit"
+          else
+            git add app/build.gradle.kts
+            git commit -m "chore: bump version to ${{ steps.version.outputs.version_name }} (code: ${{ steps.version.outputs.version_code }})"
+
+            # Push changes
+            if [[ "${{ steps.version.outputs.is_manual }}" == "true" ]]; then
+              # For manual releases, push to the current branch
+              git push origin HEAD:${{ github.ref_name }}
+
+              # Create and push the tag
+              git tag "${{ steps.version.outputs.tag }}"
+              git push origin "${{ steps.version.outputs.tag }}"
+
+              echo "Pushed version changes and created tag ${{ steps.version.outputs.tag }}"
+            else
+              # For tag-based releases, push the version update to the branch
+              # Note: The tag already exists, but we commit the version update to the branch
+
+              # Try to determine the branch this tag was created from
+              BRANCH=$(git branch -r --contains HEAD | grep -v HEAD | head -1 | sed 's/.*origin\///' | xargs)
+
+              if [[ -z "$BRANCH" ]]; then
+                echo "Could not determine branch for tag, trying main"
+                BRANCH="main"
+              fi
+
+              echo "Pushing version update to branch: $BRANCH"
+
+              # Push to the branch
+              git push origin HEAD:refs/heads/$BRANCH
+
+              echo "Pushed version changes to branch $BRANCH"
+            fi
+          fi
+
+      - name: Save commit SHA
+        id: commit
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
   get_tag:
     if: github.repository == 'farfromrefug/koma'
     name: Extract tag name
     runs-on: 'ubuntu-24.04'
+    needs: prepare_version
     outputs:
-      tag: ${{ steps.extract.outputs.tag }}
+      tag: ${{ needs.prepare_version.outputs.tag }}
 
     steps:
-      - name: Get tag name
-        id: extract
-        run: echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+      - name: Use prepared tag
+        run: echo "Using tag ${{ needs.prepare_version.outputs.tag }}"
 
   build:
     if: github.repository == 'farfromrefug/koma'
     name: Build
     runs-on: 'ubuntu-24.04'
-    needs: get_tag
+    needs: [prepare_version, get_tag]
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
@@ -80,11 +248,13 @@ jobs:
     if: github.repository == 'farfromrefug/koma'
     name: Build (FOSS)
     runs-on: ubuntu-24.04
-    needs: get_tag
+    needs: [prepare_version, get_tag]
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
@@ -129,12 +299,13 @@ jobs:
     if: github.repository == 'farfromrefug/koma'
     name: Create GitHub Release
     runs-on: ubuntu-24.04
-    needs: [get_tag, build, build_foss]
+    needs: [prepare_version, get_tag, build, build_foss]
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
           fetch-depth: 0
 
       - name: Generate changelog

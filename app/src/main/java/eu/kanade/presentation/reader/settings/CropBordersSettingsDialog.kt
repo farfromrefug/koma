@@ -40,8 +40,8 @@ fun CropBordersSettingsDialog(
     screenModel: ReaderSettingsScreenModel,
 ) {
     val tabTitles = persistentListOf(
-        stringResource(MR.strings.pref_image_scale_type),
         stringResource(MR.strings.pref_crop_borders),
+        stringResource(MR.strings.pref_image_scale_type),
         stringResource(MR.strings.pref_zoom_start),
     )
     val pagerState = rememberPagerState { tabTitles.size }

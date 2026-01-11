@@ -50,7 +50,7 @@ coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
-subsamplingscaleimageview = "com.github.farfromrefug:subsampling-scale-image-view:2fdf993697"
+subsamplingscaleimageview = "com.github.farfromrefug:subsampling-scale-image-view:41654f0220"
 #subsamplingscaleimageview = "com.github.mozzaru:subsampling-scale-image-view:b50f872d68e79294082b0ae4f367f2ccce353e4d"
 
 #image-decoder = "com.github.tachiyomiorg:image-decoder:41c059e540"

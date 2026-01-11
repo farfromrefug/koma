@@ -33,6 +33,7 @@ import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.EASE_IN_OUT_QUAD
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.EASE_OUT_QUAD
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
+import com.davemorrissey.labs.subscaleview.decoder.BorderDetectionConfig
 import com.davemorrissey.labs.subscaleview.decoder.SkiaImageRegionDecoder
 import com.github.chrisbanes.photoview.PhotoView
 import eu.kanade.domain.base.BasePreferences
@@ -284,7 +285,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
         setDoubleTapZoomDuration(config.zoomDuration.getSystemScaledDuration())
         setMinimumScaleType(config.minimumScaleType)
         setMinimumDpi(1) // Just so that very small image will be fit for initial load
-        setCropBorders(config.cropBorders)
+        setCropBorders(config.cropBorders, BorderDetectionConfig(
+            500,   // maxBorderDetectionDimension
+            0.95,   // threshold
+            0.15f   // filledRatioLimit
+        ))
         setOnImageEventListener(
             object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
                 override fun onReady() {

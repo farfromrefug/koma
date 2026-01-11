@@ -99,6 +99,45 @@ private fun ColumnScope.PagerViewerSettings(screenModel: ReaderSettingsScreenMod
         pref = screenModel.preferences.cropBorders(),
     )
 
+    val cropBorders by screenModel.preferences.cropBorders().collectAsState()
+    if (cropBorders) {
+        val cropBordersMaxDimension by screenModel.preferences.cropBordersMaxDimension().collectAsState()
+        SliderItem(
+            value = cropBordersMaxDimension,
+            valueRange = 100..2000,
+            label = stringResource(MR.strings.pref_crop_borders_max_dimension),
+            valueString = cropBordersMaxDimension.toString(),
+            onChange = {
+                screenModel.preferences.cropBordersMaxDimension().set(it)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        val cropBordersThreshold by screenModel.preferences.cropBordersThreshold().collectAsState()
+        SliderItem(
+            value = (cropBordersThreshold * 100).toInt(),
+            valueRange = 50..100,
+            label = stringResource(MR.strings.pref_crop_borders_threshold),
+            valueString = "%.2f".format(cropBordersThreshold),
+            onChange = {
+                screenModel.preferences.cropBordersThreshold().set(it / 100f)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        val cropBordersFilledRatioLimit by screenModel.preferences.cropBordersFilledRatioLimit().collectAsState()
+        SliderItem(
+            value = (cropBordersFilledRatioLimit * 100).toInt(),
+            valueRange = 0..50,
+            label = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit),
+            valueString = "%.2f".format(cropBordersFilledRatioLimit),
+            onChange = {
+                screenModel.preferences.cropBordersFilledRatioLimit().set(it / 100f)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
+
     CheckboxItem(
         label = stringResource(MR.strings.pref_landscape_zoom),
         pref = screenModel.preferences.landscapeZoom(),
@@ -167,6 +206,45 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
         label = stringResource(MR.strings.pref_crop_borders),
         pref = screenModel.preferences.cropBordersWebtoon(),
     )
+
+    val cropBordersWebtoon by screenModel.preferences.cropBordersWebtoon().collectAsState()
+    if (cropBordersWebtoon) {
+        val cropBordersMaxDimensionWebtoon by screenModel.preferences.cropBordersMaxDimensionWebtoon().collectAsState()
+        SliderItem(
+            value = cropBordersMaxDimensionWebtoon,
+            valueRange = 100..2000,
+            label = stringResource(MR.strings.pref_crop_borders_max_dimension),
+            valueString = cropBordersMaxDimensionWebtoon.toString(),
+            onChange = {
+                screenModel.preferences.cropBordersMaxDimensionWebtoon().set(it)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        val cropBordersThresholdWebtoon by screenModel.preferences.cropBordersThresholdWebtoon().collectAsState()
+        SliderItem(
+            value = (cropBordersThresholdWebtoon * 100).toInt(),
+            valueRange = 50..100,
+            label = stringResource(MR.strings.pref_crop_borders_threshold),
+            valueString = "%.2f".format(cropBordersThresholdWebtoon),
+            onChange = {
+                screenModel.preferences.cropBordersThresholdWebtoon().set(it / 100f)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+
+        val cropBordersFilledRatioLimitWebtoon by screenModel.preferences.cropBordersFilledRatioLimitWebtoon().collectAsState()
+        SliderItem(
+            value = (cropBordersFilledRatioLimitWebtoon * 100).toInt(),
+            valueRange = 0..50,
+            label = stringResource(MR.strings.pref_crop_borders_filled_ratio_limit),
+            valueString = "%.2f".format(cropBordersFilledRatioLimitWebtoon),
+            onChange = {
+                screenModel.preferences.cropBordersFilledRatioLimitWebtoon().set(it / 100f)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
 
     val dualPageSplitWebtoon by screenModel.preferences.dualPageSplitWebtoon().collectAsState()
     CheckboxItem(

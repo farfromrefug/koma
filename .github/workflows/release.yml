@@ -1,6 +1,16 @@
 name: Release
 on:
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type for new release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
   push:
     tags:
       - v*
@@ -9,28 +19,205 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write  # Needed to push commits, tags, and create releases
+  actions: read
+
 jobs:
+  prepare_version:
+    if: github.repository == 'farfromrefug/koma'
+    name: Prepare version
+    runs-on: 'ubuntu-24.04'
+    permissions:
+      contents: write  # Needed to push version changes and tags
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      is_manual: ${{ steps.version.outputs.is_manual }}
+      commit_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine version
+        id: version
+        run: |
+          set -e
+
+          # Check if triggered by tag push
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag-based release
+            TAG="${GITHUB_REF/refs\/tags\//}"
+            VERSION_NAME="${TAG#v}"
+            echo "is_manual=false" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+
+            # Extract current versionCode from build.gradle.kts
+            CURRENT_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+            NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+            echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+
+            echo "Tag-based release: $TAG (versionName: $VERSION_NAME, versionCode: $NEW_VERSION_CODE)"
+          else
+            # Manual workflow_dispatch release
+            BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+            echo "is_manual=true" >> $GITHUB_OUTPUT
+
+            # Get current version from build.gradle.kts
+            CURRENT_VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+            CURRENT_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+
+            echo "Current version: $CURRENT_VERSION (code: $CURRENT_VERSION_CODE)"
+
+            # Validate version format (must be X.Y.Z)
+            if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Error: Current version '$CURRENT_VERSION' is not in the expected X.Y.Z format"
+              exit 1
+            fi
+
+            # Parse current version
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR="${VERSION_PARTS[0]}"
+            MINOR="${VERSION_PARTS[1]}"
+            PATCH="${VERSION_PARTS[2]}"
+
+            # Bump version based on bump_type
+            case "$BUMP_TYPE" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            NEW_VERSION_CODE=$((CURRENT_VERSION_CODE + 1))
+            NEW_TAG="v$NEW_VERSION"
+
+            echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
+
+            echo "New version: $NEW_VERSION (code: $NEW_VERSION_CODE, tag: $NEW_TAG)"
+          fi
+
+      - name: Update version in build.gradle.kts
+        run: |
+          set -e
+
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          VERSION_CODE="${{ steps.version.outputs.version_code }}"
+
+          echo "Updating version to: versionName=$VERSION_NAME, versionCode=$VERSION_CODE"
+
+          # Update versionCode (extended regex - [0-9]+ matches one or more digits)
+          sed -i -E "s/versionCode = [0-9]+/versionCode = $VERSION_CODE/" app/build.gradle.kts
+
+          # Update versionName (extended regex - [^"]+ matches one or more non-quote characters)
+          sed -i -E "s/versionName = \"[^\"]+\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+
+          # Verify the updates were successful
+          UPDATED_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+          UPDATED_VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+
+          if [[ "$UPDATED_VERSION_CODE" != "$VERSION_CODE" ]]; then
+            echo "Error: Failed to update versionCode. Expected $VERSION_CODE, got $UPDATED_VERSION_CODE"
+            exit 1
+          fi
+
+          if [[ "$UPDATED_VERSION_NAME" != "$VERSION_NAME" ]]; then
+            echo "Error: Failed to update versionName. Expected $VERSION_NAME, got $UPDATED_VERSION_NAME"
+            exit 1
+          fi
+
+          # Show the changes
+          echo "Updated build.gradle.kts:"
+          echo "  versionCode: $UPDATED_VERSION_CODE"
+          echo "  versionName: $UPDATED_VERSION_NAME"
+
+      - name: Commit version changes
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet app/build.gradle.kts; then
+            echo "No changes to commit"
+          else
+            git add app/build.gradle.kts
+            git commit -m "chore: bump version to ${{ steps.version.outputs.version_name }} (code: ${{ steps.version.outputs.version_code }})"
+
+            # Push changes
+            if [[ "${{ steps.version.outputs.is_manual }}" == "true" ]]; then
+              # For manual releases, push to the current branch
+              git push origin HEAD:${{ github.ref_name }}
+
+              # Create and push the tag
+              git tag "${{ steps.version.outputs.tag }}"
+              git push origin "${{ steps.version.outputs.tag }}"
+
+              echo "Pushed version changes and created tag ${{ steps.version.outputs.tag }}"
+            else
+              # For tag-based releases, push the version update to the default branch
+              # Note: The tag already exists, but we commit the version update to the branch
+
+              # Get the default branch from GitHub API or use main as fallback
+              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+              if [[ -z "$DEFAULT_BRANCH" ]]; then
+                DEFAULT_BRANCH="main"
+              fi
+
+              echo "Pushing version update to default branch: $DEFAULT_BRANCH"
+
+              # Push to the default branch
+              git push origin HEAD:refs/heads/$DEFAULT_BRANCH
+
+              echo "Pushed version changes to branch $DEFAULT_BRANCH"
+            fi
+          fi
+
+      - name: Save commit SHA
+        id: commit
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
   get_tag:
     if: github.repository == 'farfromrefug/koma'
     name: Extract tag name
     runs-on: 'ubuntu-24.04'
+    needs: prepare_version
     outputs:
-      tag: ${{ steps.extract.outputs.tag }}
+      tag: ${{ needs.prepare_version.outputs.tag }}
 
     steps:
-      - name: Get tag name
-        id: extract
-        run: echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+      - name: Use prepared tag
+        run: echo "Using tag ${{ needs.prepare_version.outputs.tag }}"
 
   build:
     if: github.repository == 'farfromrefug/koma'
     name: Build
     runs-on: 'ubuntu-24.04'
-    needs: get_tag
+    needs: [prepare_version, get_tag]
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
@@ -80,11 +267,13 @@ jobs:
     if: github.repository == 'farfromrefug/koma'
     name: Build (FOSS)
     runs-on: ubuntu-24.04
-    needs: get_tag
+    needs: [prepare_version, get_tag]
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
@@ -129,12 +318,16 @@ jobs:
     if: github.repository == 'farfromrefug/koma'
     name: Create GitHub Release
     runs-on: ubuntu-24.04
-    needs: [get_tag, build, build_foss]
+    needs: [prepare_version, get_tag, build, build_foss]
+    permissions:
+      contents: write  # Needed to create releases
+      actions: write  # Needed to delete artifacts
 
     steps:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
+          ref: ${{ needs.prepare_version.outputs.commit_sha }}
           fetch-depth: 0
 
       - name: Generate changelog
@@ -183,7 +376,8 @@ jobs:
             koma-armeabi-v7a-${{ needs.get_tag.outputs.tag }}.apk
             koma-x86-${{ needs.get_tag.outputs.tag }}.apk
             koma-x86_64-${{ needs.get_tag.outputs.tag }}.apk
+          # Manual releases are created as drafts for review; tag-based releases are published immediately
           draft: ${{ github.event_name == 'workflow_dispatch' }}
-          make_latest: ${{ startsWith(github.ref, 'refs/tags/') }}
+          make_latest: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}

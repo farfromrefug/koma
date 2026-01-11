@@ -19,11 +19,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write  # Needed to push commits, tags, and create releases
+  actions: read
+
 jobs:
   prepare_version:
     if: github.repository == 'farfromrefug/koma'
     name: Prepare version
     runs-on: 'ubuntu-24.04'
+    permissions:
+      contents: write  # Needed to push version changes and tags
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version_name: ${{ steps.version.outputs.version_name }}
@@ -117,11 +123,11 @@ jobs:
 
           echo "Updating version to: versionName=$VERSION_NAME, versionCode=$VERSION_CODE"
 
-          # Update versionCode (assumes the format "versionCode = NUMBER" on its own line)
+          # Update versionCode (uses basic regex - [0-9]+ matches one or more digits)
           sed -i "s/versionCode = [0-9]\+/versionCode = $VERSION_CODE/" app/build.gradle.kts
 
-          # Update versionName (assumes the format "versionName = "X.Y.Z"" on its own line)
-          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
+          # Update versionName (uses basic regex - [^"]* matches any non-quote characters)
+          sed -i "s/versionName = \"[^\"]\+\"/versionName = \"$VERSION_NAME\"/" app/build.gradle.kts
 
           # Verify the updates were successful
           UPDATED_VERSION_CODE=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
@@ -312,6 +318,9 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-24.04
     needs: [prepare_version, get_tag, build, build_foss]
+    permissions:
+      contents: write  # Needed to create releases
+      actions: write  # Needed to delete artifacts
 
     steps:
       - name: Checkout

@@ -12,6 +12,7 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.browse.components.BrowseSourceHomeSection
 import eu.kanade.tachiyomi.source.model.HomeSection
+import mihon.domain.manga.model.toDomainManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
@@ -25,6 +26,7 @@ import tachiyomi.i18n.MR
 fun BrowseSourceHomeContent(
     sections: List<HomeSection>?,
     isLoading: Boolean,
+    sourceId: Long,
     getManga: @Composable (Manga) -> State<Manga>,
     contentPadding: PaddingValues,
     onMangaClick: (Manga) -> Unit,
@@ -48,7 +50,7 @@ fun BrowseSourceHomeContent(
                 items(sections) { section ->
                     BrowseSourceHomeSection(
                         title = section.title,
-                        manga = section.manga.map { it.toDomainManga() },
+                        manga = section.manga.map { it.toDomainManga(sourceId) },
                         hasMore = section.hasMore,
                         getManga = getManga,
                         onMangaClick = onMangaClick,
@@ -60,22 +62,4 @@ fun BrowseSourceHomeContent(
             }
         }
     }
-}
-
-/**
- * Convert SManga from source API to domain Manga model.
- * This is a helper function to bridge between the two models.
- */
-private fun eu.kanade.tachiyomi.source.model.SManga.toDomainManga(): Manga {
-    return Manga.create().copy(
-        url = this.url,
-        title = this.title,
-        artist = this.artist,
-        author = this.author,
-        description = this.description,
-        genre = this.getGenres() ?: emptyList(),
-        status = this.status.toLong(),
-        thumbnailUrl = this.thumbnail_url,
-        initialized = this.initialized,
-    )
 }

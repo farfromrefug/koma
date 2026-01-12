@@ -113,6 +113,7 @@ data class BrowseSourceHomeScreen(
             BrowseSourceHomeContent(
                 sections = state.sections,
                 isLoading = state.isLoading,
+                sourceId = sourceId,
                 getManga = { manga ->
                     remember(manga) {
                         getManga.subscribe(manga.url, manga.source)

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.source
 
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.HomePage
 import eu.kanade.tachiyomi.source.model.MangasPage
 import rx.Observable
 import tachiyomi.core.common.util.lang.awaitSingle
@@ -16,6 +17,26 @@ interface CatalogueSource : Source {
      * Whether the source has support for latest updates.
      */
     val supportsLatest: Boolean
+
+    /**
+     * Whether the source should show a new extension home screen instead of the default browse screen.
+     * When true, the app will display a home page with sections instead of the standard listing.
+     * 
+     * @since extensions-lib 1.6
+     * @return true if the source should show the new home screen, false otherwise.
+     */
+    fun shouldShowNewExtensionHome(): Boolean = false
+
+    /**
+     * Get the home page with sections of manga.
+     * This method should only be called if shouldShowNewExtensionHome() returns true.
+     * 
+     * @since extensions-lib 1.6
+     * @return A HomePage object containing sections of manga to display.
+     */
+    suspend fun getHomePage(): HomePage {
+        throw UnsupportedOperationException("getHomePage is not supported by this source")
+    }
 
     /**
      * Get a page with a list of manga.

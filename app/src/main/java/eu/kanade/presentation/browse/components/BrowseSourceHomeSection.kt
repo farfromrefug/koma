@@ -31,6 +31,8 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 
+private val MANGA_ITEM_WIDTH = 120.dp
+
 /**
  * Composable that displays a horizontal section with a title, list of manga, and optional "See More" button.
  */
@@ -108,7 +110,7 @@ private fun BrowseSourceHomeMangaItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    Box(modifier = Modifier.width(120.dp)) {
+    Box(modifier = Modifier.width(MANGA_ITEM_WIDTH)) {
         MangaComfortableGridItem(
             title = title,
             titleMaxLines = 3,

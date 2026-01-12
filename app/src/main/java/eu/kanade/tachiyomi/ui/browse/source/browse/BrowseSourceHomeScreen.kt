@@ -138,8 +138,9 @@ data class BrowseSourceHomeScreen(
                     }
                 },
                 onSectionSeeMoreClick = { section ->
-                    // Navigate to browse screen with section query/filter if available
-                    // For now, just navigate to popular listing
+                    // TODO: Navigate to browse screen with section-specific query/filter
+                    // For now, navigate to popular listing. Future enhancement: use section.sectionId
+                    // to pass specific filters or queries to show more items from this section.
                     navigator.push(BrowseSourceScreen(sourceId, null))
                 },
             )

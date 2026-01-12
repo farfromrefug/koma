@@ -93,6 +93,9 @@ private fun Manga.toBackupManga() =
         author = this.author,
         description = this.description,
         genre = this.genre.orEmpty(),
+        tags = this.tags.orEmpty(),
+        moods = this.moods.orEmpty(),
+        language = this.language,
         status = this.status.toInt(),
         thumbnailUrl = this.thumbnailUrl,
         favorite = this.favorite,
@@ -107,4 +110,5 @@ private fun Manga.toBackupManga() =
         version = this.version,
         notes = this.notes,
         initialized = this.initialized,
+        metadata = this.metadata,
     )

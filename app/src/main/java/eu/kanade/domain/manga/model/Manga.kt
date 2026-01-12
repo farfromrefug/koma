@@ -49,6 +49,7 @@ fun Manga.toSManga(): SManga = SManga.create().also {
     it.status = status.toInt()
     it.thumbnail_url = thumbnailUrl
     it.initialized = initialized
+    it.metadata = metadata
 }
 
 fun Manga.copyFrom(other: SManga): Manga {
@@ -71,6 +72,7 @@ fun Manga.copyFrom(other: SManga): Manga {
         moods
     }
     val thumbnailUrl = other.thumbnail_url ?: thumbnailUrl
+    val metadata = other.metadata ?: metadata
     return this.copy(
         author = author,
         artist = artist,
@@ -83,6 +85,7 @@ fun Manga.copyFrom(other: SManga): Manga {
         status = other.status.toLong(),
         updateStrategy = other.update_strategy,
         initialized = other.initialized && initialized,
+        metadata = metadata,
     )
 }
 

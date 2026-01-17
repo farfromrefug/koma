@@ -425,9 +425,9 @@ class ReaderActivity : BaseActivity() {
         
         // If manga or chapter is different, restart the activity with new content
         if (hasValidIds && isDifferentContent) {
-            // Update intent first, then recreate activity to load new content
-            setIntent(intent)
-            recreate()
+            // Finish and restart to ensure ViewModel is cleared and reinitialized
+            finish()
+            startActivity(newIntent(this, newMangaId, newChapterId))
         } else {
             // Update the intent for proper state restoration
             setIntent(intent)

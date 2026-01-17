@@ -419,9 +419,12 @@ class ReaderActivity : BaseActivity() {
         val currentMangaId = viewModel.manga?.id ?: -1L
         val currentChapterId = viewModel.state.value.viewerChapters?.currChapter?.chapter?.id ?: -1L
         
+        // Check if the new intent has valid IDs and different manga/chapter
+        val hasValidIds = newMangaId != -1L && newChapterId != -1L
+        val isDifferentContent = newMangaId != currentMangaId || newChapterId != currentChapterId
+        
         // If manga or chapter is different, restart the activity with new content
-        if (newMangaId != -1L && newChapterId != -1L && 
-            (newMangaId != currentMangaId || newChapterId != currentChapterId)) {
+        if (hasValidIds && isDifferentContent) {
             // Update intent first, then recreate activity to load new content
             setIntent(intent)
             recreate()

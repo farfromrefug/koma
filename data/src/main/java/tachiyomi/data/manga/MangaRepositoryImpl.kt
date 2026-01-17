@@ -148,6 +148,7 @@ class MangaRepositoryImpl(
                     updateTitle = it.title.isNotBlank(),
                     updateCover = !it.thumbnailUrl.isNullOrBlank(),
                     updateDetails = it.initialized,
+                    metadata = it.metadata,
                     mapper = MangaMapper::mapManga,
                 )
                     .executeAsOne()
@@ -183,6 +184,7 @@ class MangaRepositoryImpl(
                     mangaId = value.id,
                     updateStrategy = value.updateStrategy?.let(UpdateStrategyColumnAdapter::encode),
                     version = value.version,
+                    metadata = value.metadata,
                     isSyncing = 0,
                     notes = value.notes,
                 )

@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -31,8 +32,10 @@ import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.launch
+import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -117,7 +120,7 @@ data class BrowseSourceHomeScreen(
                 getManga = { manga ->
                     remember(manga) {
                         getManga.subscribe(manga.url, manga.source)
-                    }.collectAsState(manga)
+                    }.collectAsState(manga) as State<Manga>
                 },
                 contentPadding = paddingValues,
                 onMangaClick = { navigator.push(MangaScreen(it.id, true)) },
@@ -146,6 +149,7 @@ data class BrowseSourceHomeScreen(
             )
 
             // Handle dialogs
+            val onDismissRequest = { screenModel.setDialog(null) }
             when (val dialog = state.dialog) {
                 is BrowseSourceHomeScreenModel.Dialog.RemoveManga -> {
                     RemoveMangaDialog(
@@ -157,26 +161,31 @@ data class BrowseSourceHomeScreen(
                         mangaToRemove = dialog.manga,
                     )
                 }
+                is BrowseSourceHomeScreenModel.Dialog.Migrate -> {
+                    MigrateMangaDialog(
+                        current = dialog.current,
+                        target = dialog.target,
+                        // Initiated from the context of [dialog.target] so we show [dialog.current].
+                        onClickTitle = { navigator.push(MangaScreen(dialog.current.id)) },
+                        onDismissRequest = onDismissRequest,
+                    )
+                }
                 is BrowseSourceHomeScreenModel.Dialog.AddDuplicateManga -> {
                     DuplicateMangaDialog(
                         onDismissRequest = { screenModel.setDialog(null) },
-                        onConfirm = { manga ->
-                            navigator.push(MangaScreen(manga.id, true))
-                            screenModel.setDialog(null)
-                        },
+                        onConfirm = { screenModel.addFavorite(dialog.manga) },
                         onOpenManga = { manga ->
                             navigator.push(MangaScreen(manga.id, true))
                             screenModel.setDialog(null)
                         },
-                        duplicateFrom = screenModel.source,
-                        onMigrateClicked = { },
-                        duplicateManga = dialog.duplicates,
+                        duplicates = dialog.duplicates,
+                        onMigrate = { screenModel.setDialog(BrowseSourceHomeScreenModel.Dialog.Migrate(dialog.manga, it)) },
                     )
                 }
                 is BrowseSourceHomeScreenModel.Dialog.ChangeMangaCategory -> {
                     ChangeCategoryDialog(
                         initialSelection = dialog.initialSelection,
-                        onDismissRequest = { screenModel.setDialog(null) },
+                        onDismissRequest = onDismissRequest,
                         onEditCategories = { },
                         onConfirm = { include, _ ->
                             screenModel.setDialog(null)
@@ -185,10 +194,14 @@ data class BrowseSourceHomeScreen(
                 }
                 is BrowseSourceHomeScreenModel.Dialog.ConfirmAddOrDownload -> {
                     ConfirmAddOrDownloadDialog(
-                        onDismissRequest = { screenModel.setDialog(null) },
-                        onConfirm = {
-                            screenModel.addOrDownloadFavorite(dialog.manga)
-                            screenModel.setDialog(null)
+                        onDismissRequest = onDismissRequest,
+                        onConfirmFavorite = {
+                            onDismissRequest()
+                            screenModel.addFavorite(dialog.manga)
+                        },
+                        onConfirmDownload = {
+                            onDismissRequest()
+                            screenModel.downloadFullMangaAndFavorite(dialog.manga)
                         },
                     )
                 }

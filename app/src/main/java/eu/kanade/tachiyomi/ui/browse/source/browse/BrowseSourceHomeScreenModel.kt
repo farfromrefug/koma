@@ -4,15 +4,19 @@ import android.content.Context
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import eu.kanade.domain.chapter.interactor.SyncChaptersWithSource
 import eu.kanade.domain.manga.interactor.UpdateManga
+import eu.kanade.domain.manga.model.toSManga
 import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.util.ioCoroutineScope
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.data.library.LocalMangaImportJob
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.HomeSection
+import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.firstOrNull
@@ -40,6 +44,11 @@ import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlinx.coroutines.flow.SharingStarted
+import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.manga.model.toMangaUpdate
+import tachiyomi.source.local.LocalSource
+import tachiyomi.source.local.isLocal
+import java.time.Instant
 
 /**
  * Screen model for the browse source home screen that displays sections of manga.
@@ -48,8 +57,10 @@ class BrowseSourceHomeScreenModel(
     private val context: Context,
     private val sourceId: Long,
     private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val syncChaptersWithSource: SyncChaptersWithSource = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val coverCache: CoverCache = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
     private val setMangaCategories: SetMangaCategories = Injekt.get(),
@@ -67,7 +78,7 @@ class BrowseSourceHomeScreenModel(
 
     init {
         loadHomePage()
-        
+
         if (!getIncognitoState.await(source.id)) {
             sourcePreferences.lastUsedSource().set(source.id)
         }
@@ -78,13 +89,13 @@ class BrowseSourceHomeScreenModel(
      */
     private fun loadHomePage() {
         if (source !is CatalogueSource) return
-        
+
         mutableState.update { it.copy(isLoading = true) }
-        
+
         screenModelScope.launchIO {
             try {
                 val homePage = source.getHomePage()
-                mutableState.update { 
+                mutableState.update {
                     it.copy(
                         sections = homePage.sections,
                         isLoading = false,
@@ -92,7 +103,7 @@ class BrowseSourceHomeScreenModel(
                 }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Failed to load home page" }
-                mutableState.update { 
+                mutableState.update {
                     it.copy(
                         sections = emptyList(),
                         isLoading = false,
@@ -110,10 +121,146 @@ class BrowseSourceHomeScreenModel(
     }
 
     /**
+     * Get user categories.
+     *
+     * @return List of categories, not including the default category
+     */
+    suspend fun getCategories(): List<Category> {
+        return getCategories.subscribe()
+            .firstOrNull()
+            ?.filterNot { it.isSystemCategory }
+            .orEmpty()
+    }
+
+    /**
      * Get duplicate library manga for the given manga.
      */
     suspend fun getDuplicateLibraryManga(manga: Manga): List<MangaWithChapterCount> {
-        return getDuplicateLibraryManga.await(manga)
+        return getDuplicateLibraryManga.invoke(manga)
+    }
+
+
+    fun downloadFullMangaAndFavorite(manga: Manga) {
+        // Called from UI: user chose to download then favorite.
+        screenModelScope.launch {
+            val chaptersToDownload: List<tachiyomi.domain.chapter.model.Chapter> = try {
+                withIOContext {
+                    // Build an SManga to ask the source
+                    val sManga = manga.toSManga()
+
+                    // Resolve source (may throw if not found, let it propagate to catch)
+                    val src = sourceManager.getOrStub(manga.source)
+
+                    // Get remote chapter list (network call)
+                    val sChapters = src.getChapterList(sManga)
+
+                    // Sync chapters from the source into DB and get domain chapter list like MangaScreenModel does
+                    // `syncChaptersWithSource.await` returns the synced domain Chapter list
+                    syncChaptersWithSource.await(
+                        sChapters,
+                        manga,
+                        src,
+                        manualFetch = true,
+                    )
+                }
+            } catch (e: Throwable) {
+                // If network or sync failed, fallback to whatever chapters are in DB for this manga
+                logcat(LogPriority.ERROR, e) { "Failed to fetch/sync chapters for downloadFullMangaAndFavorite" }
+                // getMangaWithChapters should provide DB chapters; use applyScanlatorFilter = false to get all
+                getMangaAndChapters.awaitChapters(manga.id, applyScanlatorFilter = false)
+            }
+
+            if (chaptersToDownload.isNotEmpty()) {
+                // Enqueue all chapters for download
+                downloadManager.downloadChapters(manga, chaptersToDownload)
+            }
+            // Mark as favorite immediately
+//            changeMangaFavorite(manga)
+
+            // TODO: enqueue download for all chapters using download manager / use-cases
+            // Example placeholder:
+            // downloadManager.enqueueAllChapters(manga)
+        }
+    }
+
+    private fun moveMangaToCategories(manga: Manga, vararg categories: Category) {
+        moveMangaToCategories(manga, categories.filter { it.id != 0L }.map { it.id })
+    }
+
+    fun moveMangaToCategories(manga: Manga, categoryIds: List<Long>) {
+        screenModelScope.launchIO {
+            setMangaCategories.await(
+                mangaId = manga.id,
+                categoryIds = categoryIds.toList(),
+            )
+        }
+    }
+    /**
+     * Adds or removes a manga from the library.
+     *
+     * @param manga the manga to update.
+     */
+    fun changeMangaFavorite(manga: Manga) {
+        screenModelScope.launch {
+            var new = manga.copy(
+                favorite = !manga.favorite,
+                dateAdded = when (manga.favorite) {
+                    true -> 0
+                    false -> Instant.now().toEpochMilli()
+                },
+            )
+
+            if (!new.favorite) {
+                new = new.removeCovers(coverCache)
+            } else {
+                setMangaDefaultChapterFlags.await(manga)
+                addTracks.bindEnhancedTrackers(manga, source)
+            }
+
+            updateManga.await(new.toMangaUpdate())
+
+            // For local source manga, start background job to prepare metadata/covers
+            if (new.favorite && manga.isLocal()) {
+                LocalMangaImportJob.startNow(context, manga.id)
+            }
+        }
+    }
+
+    fun addFavorite(manga: Manga) {
+
+        screenModelScope.launch {
+
+            val categories = getCategories()
+            val defaultCategoryId = libraryPreferences.defaultCategory().get()
+            val defaultCategory = categories.find { it.id == defaultCategoryId.toLong() }
+
+            when {
+                // Default category set
+                defaultCategory != null -> {
+                    moveMangaToCategories(manga, defaultCategory)
+
+                    changeMangaFavorite(manga)
+                }
+
+                // Automatic 'Default' or no categories
+                defaultCategoryId == 0 || categories.isEmpty() -> {
+                    moveMangaToCategories(manga)
+
+                    changeMangaFavorite(manga)
+                }
+
+                // Choose a category
+                else -> {
+                    val preselectedIds = getCategories.await(manga.id).map { it.id }
+                    setDialog(
+                        Dialog.ChangeMangaCategory(
+                            manga,
+                            categories.mapAsCheckboxState { it.id in preselectedIds }.toImmutableList(),
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -122,20 +269,6 @@ class BrowseSourceHomeScreenModel(
     fun addOrDownloadFavorite(manga: Manga) {
         screenModelScope.launch {
             addFavorite(manga)
-        }
-    }
-
-    private suspend fun addFavorite(manga: Manga) {
-        val categories = getCategories()
-        val defaultCategoryId = sourcePreferences.defaultCategory().get().toLong()
-        val defaultCategory = categories.find { it.id == defaultCategoryId }
-
-        withIOContext {
-            updateManga.awaitUpdateFavorite(manga.id, true)
-            
-            if (defaultCategory != null) {
-                setMangaCategories.await(manga.id, listOf(defaultCategory.id))
-            }
         }
     }
 
@@ -160,16 +293,16 @@ class BrowseSourceHomeScreenModel(
     /**
      * Get the initial selection state for categories.
      */
-    suspend fun getInitialCategorySelection(manga: Manga): ImmutableList<CheckboxState.State<Category>> {
-        val categories = getCategories()
-        val mangaCategories = getMangaAndChapters.subscribe(manga.id)
-            .firstOrNull()
-            ?.manga
-            ?.categories
-            ?: emptyList()
-
-        return categories.mapAsCheckboxState { it.id in mangaCategories }.toImmutableList()
-    }
+//    suspend fun getInitialCategorySelection(manga: Manga): ImmutableList<CheckboxState.State<Category>> {
+//        val categories = getCategories()
+//        val mangaCategories = getMangaAndChapters.subscribe(manga.id)
+//            .firstOrNull()
+//            ?.manga
+//            ?.categories
+//            ?: emptyList()
+//
+//        return categories.mapAsCheckboxState { it.id in mangaCategories }.toImmutableList()
+//    }
 
     sealed interface Dialog {
         data class RemoveManga(val manga: Manga) : Dialog
@@ -179,6 +312,7 @@ class BrowseSourceHomeScreenModel(
             val initialSelection: ImmutableList<CheckboxState.State<Category>>,
         ) : Dialog
         data class ConfirmAddOrDownload(val manga: Manga) : Dialog
+        data class Migrate(val target: Manga, val current: Manga) : Dialog
     }
 
     @Immutable

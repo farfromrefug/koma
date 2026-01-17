@@ -18,6 +18,7 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.i18n.stringResource
 
 /**
  * Content composable for the home page screen.
@@ -39,7 +40,7 @@ fun BrowseSourceHomeContent(
         }
         sections == null || sections.isEmpty() -> {
             EmptyScreen(
-                message = MR.strings.no_results_found,
+                message = stringResource(MR.strings.no_results_found),
             )
         }
         else -> {

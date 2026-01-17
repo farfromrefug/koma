@@ -406,6 +406,32 @@ class ReaderActivity : BaseActivity() {
     }
 
     /**
+     * Called when the activity is re-launched with a new intent (due to singleTask launch mode).
+     * If the new intent contains different manga/chapter, restart the activity to load new content.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        
+        val newMangaId = intent.extras?.getLong("manga", -1) ?: -1L
+        val newChapterId = intent.extras?.getLong("chapter", -1) ?: -1L
+        
+        // Get current manga/chapter from ViewModel
+        val currentMangaId = viewModel.manga?.id ?: -1L
+        val currentChapterId = viewModel.state.value.viewerChapters?.currChapter?.chapter?.id ?: -1L
+        
+        // If manga or chapter is different, restart the activity with new content
+        if (newMangaId != -1L && newChapterId != -1L && 
+            (newMangaId != currentMangaId || newChapterId != currentChapterId)) {
+            // Finish current activity and start fresh with new intent
+            finish()
+            startActivity(newIntent(this, newMangaId, newChapterId))
+        } else {
+            // Update the intent for proper state restoration
+            setIntent(intent)
+        }
+    }
+
+    /**
      * Set menu visibility again on activity resume to apply immersive mode again if needed.
      * Helps with rotations.
      */

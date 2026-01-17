@@ -27,6 +27,7 @@ data class MangaUpdate(
     val updateStrategy: UpdateStrategy? = null,
     val initialized: Boolean? = null,
     val version: Long? = null,
+    val metadata: String? = null,
     val notes: String? = null,
 )
 

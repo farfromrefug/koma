@@ -11,10 +11,13 @@ fun SManga.toDomainManga(sourceId: Long): Manga {
         author = author,
         description = description,
         genre = getGenres(),
+        tags = getTags(),
+        moods = getMoods(),
         status = status.toLong(),
         thumbnailUrl = thumbnail_url,
         updateStrategy = update_strategy,
         initialized = initialized,
         source = sourceId,
+        metadata = metadata,
     )
 }

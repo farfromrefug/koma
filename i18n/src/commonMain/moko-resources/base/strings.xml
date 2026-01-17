@@ -776,6 +776,8 @@
     <string name="local_invalid_format">Invalid chapter format</string>
     <string name="local_filter_order_by">Order by</string>
     <string name="date">Date</string>
+    <string name="see_more">See more</string>
+    <string name="home">Home</string>
 
     <!-- Manga info -->
     <string name="ongoing">Ongoing</string>

@@ -219,6 +219,8 @@ dependencies {
 
     implementation(androidx.bundles.lifecycle)
 
+    implementation(libs.localbroadcastmanager)
+
     // Job scheduling
     implementation(androidx.workmanager)
 

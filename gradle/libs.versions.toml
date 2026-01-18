@@ -39,6 +39,7 @@ libarchive = "me.zhanghai.android.libarchive:library:1.1.6"
 sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "sqlite" }
 sqlite-ktx = { module = "androidx.sqlite:sqlite-ktx", version.ref = "sqlite" }
 sqlite-android = "com.github.requery:sqlite-android:3.49.0"
+localbroadcastmanager = "androidx.localbroadcastmanager:localbroadcastmanager:1.1.0"
 
 preferencektx = "androidx.preference:preference-ktx:1.2.1"
 

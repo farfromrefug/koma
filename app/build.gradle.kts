@@ -26,8 +26,8 @@ android {
     defaultConfig {
         applicationId = "app.koma"
 
-        versionCode = 21
-        versionName = "1.2.4"
+        versionCode = 22
+        versionName = "1.2.5"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")

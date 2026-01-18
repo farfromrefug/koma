@@ -176,6 +176,8 @@ class PagerPageHolder(
                             viewer.config.cropBordersMaxDimension,
                             viewer.config.cropBordersThreshold,
                             viewer.config.cropBordersFilledRatioLimit,
+                            viewer.config.cropOnlyWhite,
+                            if (viewer.config.maxCropPercentage > 0f) viewer.config.maxCropPercentage else null,
                         ),
                     ),
                 )

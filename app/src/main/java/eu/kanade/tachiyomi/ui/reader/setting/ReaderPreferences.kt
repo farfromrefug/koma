@@ -63,6 +63,10 @@ class ReaderPreferences(
 
     fun cropBordersFilledRatioLimit() = preferenceStore.getFloat("crop_borders_filled_ratio_limit", 0.15f)
 
+    fun cropOnlyWhite() = preferenceStore.getBoolean("crop_only_white", false)
+
+    fun maxCropPercentage() = preferenceStore.getFloat("max_crop_percentage", 0.0f)
+
     fun navigateToPan() = preferenceStore.getBoolean("navigate_pan", true)
 
     fun landscapeZoom() = preferenceStore.getBoolean("landscape_zoom", true)
@@ -74,6 +78,10 @@ class ReaderPreferences(
     fun cropBordersThresholdWebtoon() = preferenceStore.getFloat("crop_borders_threshold_webtoon", 0.95f)
 
     fun cropBordersFilledRatioLimitWebtoon() = preferenceStore.getFloat("crop_borders_filled_ratio_limit_webtoon", 0.15f)
+
+    fun cropOnlyWhiteWebtoon() = preferenceStore.getBoolean("crop_only_white_webtoon", false)
+
+    fun maxCropPercentageWebtoon() = preferenceStore.getFloat("max_crop_percentage_webtoon", 0.0f)
 
     fun webtoonSidePadding() = preferenceStore.getInt("webtoon_side_padding", WEBTOON_PADDING_MIN)
 

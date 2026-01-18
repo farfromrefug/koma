@@ -51,6 +51,12 @@ class PagerConfig(
     var cropBordersFilledRatioLimit = 0.15f
         private set
 
+    var cropOnlyWhite = false
+        private set
+
+    var maxCropPercentage = 0.0f
+        private set
+
     var navigateToPan = false
         private set
 
@@ -84,6 +90,12 @@ class PagerConfig(
 
         readerPreferences.cropBordersFilledRatioLimit()
             .register({ cropBordersFilledRatioLimit = it }, { imagePropertyChangedListener?.invoke() })
+
+        readerPreferences.cropOnlyWhite()
+            .register({ cropOnlyWhite = it }, { imagePropertyChangedListener?.invoke() })
+
+        readerPreferences.maxCropPercentage()
+            .register({ maxCropPercentage = it }, { imagePropertyChangedListener?.invoke() })
 
         readerPreferences.navigateToPan()
             .register({ navigateToPan = it })

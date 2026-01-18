@@ -38,6 +38,12 @@ class WebtoonConfig(
     var cropBordersFilledRatioLimit = 0.15f
         private set
 
+    var cropOnlyWhite = false
+        private set
+
+    var maxCropPercentage = 0.0f
+        private set
+
     var zoomOutDisabled = false
         private set
 
@@ -65,6 +71,12 @@ class WebtoonConfig(
 
         readerPreferences.cropBordersFilledRatioLimitWebtoon()
             .register({ cropBordersFilledRatioLimit = it }, { imagePropertyChangedListener?.invoke() })
+
+        readerPreferences.cropOnlyWhiteWebtoon()
+            .register({ cropOnlyWhite = it }, { imagePropertyChangedListener?.invoke() })
+
+        readerPreferences.maxCropPercentageWebtoon()
+            .register({ maxCropPercentage = it }, { imagePropertyChangedListener?.invoke() })
 
         readerPreferences.webtoonSidePadding()
             .register({ sidePadding = it }, { imagePropertyChangedListener?.invoke() })

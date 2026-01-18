@@ -59,13 +59,13 @@ class ReaderPreferences(
 
     fun cropBordersMaxDimension() = preferenceStore.getInt("crop_borders_max_dimension", 500)
 
-    fun cropBordersThreshold() = preferenceStore.getFloat("crop_borders_threshold", 0.95f)
+    fun cropBordersThreshold() = preferenceStore.getFloat("crop_borders_threshold", 0.78f)
 
-    fun cropBordersFilledRatioLimit() = preferenceStore.getFloat("crop_borders_filled_ratio_limit", 0.15f)
+    fun cropBordersFilledRatioLimit() = preferenceStore.getFloat("crop_borders_filled_ratio_limit", 0.02f)
 
-    fun cropOnlyWhite() = preferenceStore.getBoolean("crop_only_white", false)
+    fun cropOnlyWhite() = preferenceStore.getBoolean("crop_only_white", true)
 
-    fun maxCropPercentage() = preferenceStore.getFloat("max_crop_percentage", 0.0f)
+    fun maxCropPercentage() = preferenceStore.getFloat("max_crop_percentage", 0.14f)
 
     fun navigateToPan() = preferenceStore.getBoolean("navigate_pan", true)
 
@@ -75,13 +75,13 @@ class ReaderPreferences(
 
     fun cropBordersMaxDimensionWebtoon() = preferenceStore.getInt("crop_borders_max_dimension_webtoon", 500)
 
-    fun cropBordersThresholdWebtoon() = preferenceStore.getFloat("crop_borders_threshold_webtoon", 0.95f)
+    fun cropBordersThresholdWebtoon() = preferenceStore.getFloat("crop_borders_threshold_webtoon", 0.78f)
 
-    fun cropBordersFilledRatioLimitWebtoon() = preferenceStore.getFloat("crop_borders_filled_ratio_limit_webtoon", 0.15f)
+    fun cropBordersFilledRatioLimitWebtoon() = preferenceStore.getFloat("crop_borders_filled_ratio_limit_webtoon", 0.02f)
 
-    fun cropOnlyWhiteWebtoon() = preferenceStore.getBoolean("crop_only_white_webtoon", false)
+    fun cropOnlyWhiteWebtoon() = preferenceStore.getBoolean("crop_only_white_webtoon", true)
 
-    fun maxCropPercentageWebtoon() = preferenceStore.getFloat("max_crop_percentage_webtoon", 0.0f)
+    fun maxCropPercentageWebtoon() = preferenceStore.getFloat("max_crop_percentage_webtoon", 0.14f)
 
     fun webtoonSidePadding() = preferenceStore.getInt("webtoon_side_padding", WEBTOON_PADDING_MIN)
 

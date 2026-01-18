@@ -426,7 +426,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         val cropBorders: Boolean = false,
         val zoomStartPosition: ZoomStartPosition = ZoomStartPosition.CENTER,
         val landscapeZoom: Boolean = false,
-        val borderDetectionConfig: BorderDetectionConfig = BorderDetectionConfig(500, 0.95, 0.15f),
+        val borderDetectionConfig: BorderDetectionConfig = BorderDetectionConfig(500, 0.95, 0.15f, false, null),
     )
 
     enum class ZoomStartPosition {

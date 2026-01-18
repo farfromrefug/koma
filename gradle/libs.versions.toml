@@ -50,7 +50,7 @@ coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
-subsamplingscaleimageview = "com.github.farfromrefug:subsampling-scale-image-view:33d20fd58f"
+subsamplingscaleimageview = "com.github.farfromrefug:subsampling-scale-image-view:43c56f6c87"
 #subsamplingscaleimageview = "com.github.mozzaru:subsampling-scale-image-view:b50f872d68e79294082b0ae4f367f2ccce353e4d"
 
 #image-decoder = "com.github.tachiyomiorg:image-decoder:41c059e540"
@@ -59,7 +59,7 @@ natural-comparator = "com.github.gpanther:java-nat-sort:natural-comparator-1.1"
 
 richeditor-compose = "com.mohamedrejeb.richeditor:richeditor-compose:1.0.0-rc13"
 
-material = "com.google.android.material:material:1.12.0"
+material = "com.google.android.material:material:1.13.0"
 flexible-adapter-core = "com.github.arkon.FlexibleAdapter:flexible-adapter:c8013533"
 photoview = "com.github.chrisbanes:PhotoView:2.3.0"
 directionalviewpager = "com.github.tachiyomiorg:DirectionalViewPager:1.0.0"

@@ -29,7 +29,7 @@ fun BrowseSourceToolbar(
     searchQuery: String?,
     onSearchQueryChange: (String?) -> Unit,
     source: Source?,
-    displayMode: LibraryDisplayMode,
+    displayMode: LibraryDisplayMode?,
     onDisplayModeChange: (LibraryDisplayMode) -> Unit,
     navigateUp: () -> Unit,
     onWebViewClick: () -> Unit,
@@ -38,6 +38,8 @@ fun BrowseSourceToolbar(
     onSearch: (String) -> Unit,
     onRefresh: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    showDisplayModeIcon: Boolean = true,
+    showSearchIcon: Boolean = false,
 ) {
     // Avoid capturing unstable source in actions lambda
     val title = source?.name
@@ -57,17 +59,19 @@ fun BrowseSourceToolbar(
             AppBarActions(
                 actions = persistentListOf<AppBar.AppBarAction>().builder()
                     .apply {
-                        add(
-                            AppBar.Action(
-                                title = stringResource(MR.strings.action_display_mode),
-                                icon = if (displayMode == LibraryDisplayMode.List) {
-                                    Icons.AutoMirrored.Filled.ViewList
-                                } else {
-                                    Icons.Filled.ViewModule
-                                },
-                                onClick = { selectingDisplayMode = true },
-                            ),
-                        )
+                        if (showDisplayModeIcon && displayMode != null) {
+                            add(
+                                AppBar.Action(
+                                    title = stringResource(MR.strings.action_display_mode),
+                                    icon = if (displayMode == LibraryDisplayMode.List) {
+                                        Icons.AutoMirrored.Filled.ViewList
+                                    } else {
+                                        Icons.Filled.ViewModule
+                                    },
+                                    onClick = { selectingDisplayMode = true },
+                                ),
+                            )
+                        }
                         if (isLocalSource) {
                             add(
                                 AppBar.OverflowAction(
@@ -101,30 +105,32 @@ fun BrowseSourceToolbar(
                     .build(),
             )
 
-            DropdownMenu(
-                expanded = selectingDisplayMode,
-                onDismissRequest = { selectingDisplayMode = false },
-            ) {
-                RadioMenuItem(
-                    text = { Text(text = stringResource(MR.strings.action_display_comfortable_grid)) },
-                    isChecked = displayMode == LibraryDisplayMode.ComfortableGrid,
+            if (displayMode != null) {
+                DropdownMenu(
+                    expanded = selectingDisplayMode,
+                    onDismissRequest = { selectingDisplayMode = false },
                 ) {
-                    selectingDisplayMode = false
-                    onDisplayModeChange(LibraryDisplayMode.ComfortableGrid)
-                }
-                RadioMenuItem(
-                    text = { Text(text = stringResource(MR.strings.action_display_grid)) },
-                    isChecked = displayMode == LibraryDisplayMode.CompactGrid,
-                ) {
-                    selectingDisplayMode = false
-                    onDisplayModeChange(LibraryDisplayMode.CompactGrid)
-                }
-                RadioMenuItem(
-                    text = { Text(text = stringResource(MR.strings.action_display_list)) },
-                    isChecked = displayMode == LibraryDisplayMode.List,
-                ) {
-                    selectingDisplayMode = false
-                    onDisplayModeChange(LibraryDisplayMode.List)
+                    RadioMenuItem(
+                        text = { Text(text = stringResource(MR.strings.action_display_comfortable_grid)) },
+                        isChecked = displayMode == LibraryDisplayMode.ComfortableGrid,
+                    ) {
+                        selectingDisplayMode = false
+                        onDisplayModeChange(LibraryDisplayMode.ComfortableGrid)
+                    }
+                    RadioMenuItem(
+                        text = { Text(text = stringResource(MR.strings.action_display_grid)) },
+                        isChecked = displayMode == LibraryDisplayMode.CompactGrid,
+                    ) {
+                        selectingDisplayMode = false
+                        onDisplayModeChange(LibraryDisplayMode.CompactGrid)
+                    }
+                    RadioMenuItem(
+                        text = { Text(text = stringResource(MR.strings.action_display_list)) },
+                        isChecked = displayMode == LibraryDisplayMode.List,
+                    ) {
+                        selectingDisplayMode = false
+                        onDisplayModeChange(LibraryDisplayMode.List)
+                    }
                 }
             }
         },

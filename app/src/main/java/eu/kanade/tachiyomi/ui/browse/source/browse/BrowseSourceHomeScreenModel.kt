@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
@@ -38,6 +39,7 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
+import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.service.SourceManager
@@ -49,6 +51,16 @@ import tachiyomi.domain.manga.model.toMangaUpdate
 import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.isLocal
 import java.time.Instant
+
+/**
+ * Processed home section with domain Manga instead of SManga
+ */
+data class ProcessedHomeSection(
+    val title: String,
+    val manga: List<Manga>,
+    val hasMore: Boolean = false,
+    val sectionId: String? = null,
+)
 
 /**
  * Screen model for the browse source home screen that displays sections of manga.
@@ -72,6 +84,7 @@ class BrowseSourceHomeScreenModel(
     val downloadManager: DownloadManager = Injekt.get(),
     private val addTracks: AddTracks = Injekt.get(),
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
+    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
 ) : StateScreenModel<BrowseSourceHomeScreenModel.State>(State()) {
 
     val source = sourceManager.getOrStub(sourceId)
@@ -95,9 +108,23 @@ class BrowseSourceHomeScreenModel(
         screenModelScope.launchIO {
             try {
                 val homePage = source.getHomePage()
+                
+                // Convert sections and insert manga into database
+                val processedSections = homePage.sections.map { section ->
+                    val domainManga = section.manga.map { it.toDomainManga(sourceId) }
+                    val mangaWithIds = networkToLocalManga(domainManga)
+                    
+                    ProcessedHomeSection(
+                        title = section.title,
+                        manga = mangaWithIds,
+                        hasMore = section.hasMore,
+                        sectionId = section.sectionId,
+                    )
+                }
+                
                 mutableState.update {
                     it.copy(
-                        sections = homePage.sections,
+                        sections = processedSections,
                         isLoading = false,
                     )
                 }
@@ -317,7 +344,7 @@ class BrowseSourceHomeScreenModel(
 
     @Immutable
     data class State(
-        val sections: List<HomeSection>? = null,
+        val sections: List<ProcessedHomeSection>? = null,
         val isLoading: Boolean = false,
         val dialog: Dialog? = null,
     )

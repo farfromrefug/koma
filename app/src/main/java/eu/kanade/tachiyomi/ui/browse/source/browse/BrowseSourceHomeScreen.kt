@@ -121,7 +121,6 @@ data class BrowseSourceHomeScreen(
             BrowseSourceHomeContent(
                 sections = state.sections,
                 isLoading = state.isLoading,
-                sourceId = sourceId,
                 getManga = @Composable { manga ->
                     produceState(initialValue = manga) {
                         try {

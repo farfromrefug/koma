@@ -123,18 +123,16 @@ data class BrowseSourceHomeScreen(
                 isLoading = state.isLoading,
                 sourceId = sourceId,
                 getManga = @Composable { manga ->
-                    remember(manga) {
-                        produceState(initialValue = manga) {
-                            try {
-                                getManga.subscribe(manga.url, manga.source)
-                                    .filterNotNull()
-                                    .collectLatest { value = it }
-                            } catch (e: Exception) {
-                                logcat(LogPriority.ERROR, e) { 
-                                    "Failed to subscribe to manga: title=${manga.title}, url=${manga.url}, source=${manga.source}"
-                                }
-                                // Keep the initial manga value if subscription fails
+                    produceState(initialValue = manga) {
+                        try {
+                            getManga.subscribe(manga.url, manga.source)
+                                .filterNotNull()
+                                .collectLatest { value = it }
+                        } catch (e: Exception) {
+                            logcat(LogPriority.ERROR, e) { 
+                                "Failed to subscribe to manga: title=${manga.title}, url=${manga.url}, source=${manga.source}"
                             }
+                            // Keep the initial manga value if subscription fails
                         }
                     }
                 },

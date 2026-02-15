@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -31,6 +32,8 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.util.lang.launchIO
@@ -119,8 +122,12 @@ data class BrowseSourceHomeScreen(
                 sourceId = sourceId,
                 getManga = { manga ->
                     remember(manga) {
-                        getManga.subscribe(manga.url, manga.source)
-                    }.collectAsState(manga) as State<Manga>
+                        produceState(initialValue = manga) {
+                            getManga.subscribe(manga.url, manga.source)
+                                .filterNotNull()
+                                .collectLatest { value = it }
+                        }
+                    }
                 },
                 contentPadding = paddingValues,
                 onMangaClick = { navigator.push(MangaScreen(it.id, true)) },

@@ -123,9 +123,13 @@ data class BrowseSourceHomeScreen(
                 getManga = { manga ->
                     remember(manga) {
                         produceState(initialValue = manga) {
-                            getManga.subscribe(manga.url, manga.source)
-                                .filterNotNull()
-                                .collectLatest { value = it }
+                            try {
+                                getManga.subscribe(manga.url, manga.source)
+                                    .filterNotNull()
+                                    .collectLatest { value = it }
+                            } catch (e: Exception) {
+                                // Keep the initial manga value if subscription fails
+                            }
                         }
                     }
                 },

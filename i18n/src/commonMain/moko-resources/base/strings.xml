@@ -450,6 +450,10 @@
     <string name="pref_crop_borders_threshold_summary">Threshold for border detection (default: 0.95)</string>
     <string name="pref_crop_borders_filled_ratio_limit">Filled ratio limit</string>
     <string name="pref_crop_borders_filled_ratio_limit_summary">Filled ratio limit for border detection (default: 0.15)</string>
+    <string name="pref_crop_only_white">Crop only white borders</string>
+    <string name="pref_crop_only_white_summary">When enabled, only detect and crop white backgrounds (not black)</string>
+    <string name="pref_max_crop_percentage">Max crop percentage</string>
+    <string name="pref_max_crop_percentage_summary">Maximum percentage of width/height that can be cropped (0 = unlimited)</string>
     <string name="pref_custom_brightness">Custom brightness</string>
     <string name="pref_grayscale">Grayscale</string>
     <string name="pref_inverted_colors">Inverted</string>

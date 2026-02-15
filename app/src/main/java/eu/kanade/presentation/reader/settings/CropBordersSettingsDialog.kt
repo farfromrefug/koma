@@ -40,8 +40,8 @@ fun CropBordersSettingsDialog(
     screenModel: ReaderSettingsScreenModel,
 ) {
     val tabTitles = persistentListOf(
-        stringResource(MR.strings.pref_image_scale_type),
         stringResource(MR.strings.pref_crop_borders),
+        stringResource(MR.strings.pref_image_scale_type),
         stringResource(MR.strings.pref_zoom_start),
     )
     val pagerState = rememberPagerState { tabTitles.size }
@@ -142,6 +142,23 @@ private fun CropBordersPage(screenModel: ReaderSettingsScreenModel) {
                 },
                 pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             )
+
+            CheckboxItem(
+                label = stringResource(MR.strings.pref_crop_only_white),
+                pref = screenModel.preferences.cropOnlyWhiteWebtoon(),
+            )
+
+            val maxCropPercentageWebtoon by screenModel.preferences.maxCropPercentageWebtoon().collectAsState()
+            SliderItem(
+                value = (maxCropPercentageWebtoon * 100).toInt(),
+                valueRange = 0..100,
+                label = stringResource(MR.strings.pref_max_crop_percentage),
+                valueString = if (maxCropPercentageWebtoon > 0f) "%.0f%%".format(maxCropPercentageWebtoon * 100) else "Unlimited",
+                onChange = {
+                    screenModel.preferences.maxCropPercentageWebtoon().set(it / 100f)
+                },
+                pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
         }
     } else {
         CheckboxItem(
@@ -183,6 +200,23 @@ private fun CropBordersPage(screenModel: ReaderSettingsScreenModel) {
                 valueString = "%.2f".format(cropBordersFilledRatioLimit),
                 onChange = {
                     screenModel.preferences.cropBordersFilledRatioLimit().set(it / 100f)
+                },
+                pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+
+            CheckboxItem(
+                label = stringResource(MR.strings.pref_crop_only_white),
+                pref = screenModel.preferences.cropOnlyWhite(),
+            )
+
+            val maxCropPercentage by screenModel.preferences.maxCropPercentage().collectAsState()
+            SliderItem(
+                value = (maxCropPercentage * 100).toInt(),
+                valueRange = 0..100,
+                label = stringResource(MR.strings.pref_max_crop_percentage),
+                valueString = if (maxCropPercentage > 0f) "%.0f%%".format(maxCropPercentage * 100) else "Unlimited",
+                onChange = {
+                    screenModel.preferences.maxCropPercentage().set(it / 100f)
                 },
                 pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             )

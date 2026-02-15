@@ -26,8 +26,8 @@ android {
     defaultConfig {
         applicationId = "app.koma"
 
-        versionCode = 19
-        versionName = "1.2.2"
+        versionCode = 23
+        versionName = "1.2.6"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
@@ -218,6 +218,8 @@ dependencies {
     implementation(androidx.profileinstaller)
 
     implementation(androidx.bundles.lifecycle)
+
+    implementation(libs.localbroadcastmanager)
 
     // Job scheduling
     implementation(androidx.workmanager)

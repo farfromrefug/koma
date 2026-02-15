@@ -130,7 +130,9 @@ data class BrowseSourceHomeScreen(
                                     .filterNotNull()
                                     .collectLatest { value = it }
                             } catch (e: Exception) {
-                                logcat(LogPriority.ERROR, e) { "Failed to subscribe to manga: ${manga.title}" }
+                                logcat(LogPriority.ERROR, e) { 
+                                    "Failed to subscribe to manga: title=${manga.title}, url=${manga.url}, source=${manga.source}"
+                                }
                                 // Keep the initial manga value if subscription fails
                             }
                         }

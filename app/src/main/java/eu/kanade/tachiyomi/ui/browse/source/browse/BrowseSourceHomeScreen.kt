@@ -35,8 +35,10 @@ import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.StubSource
@@ -128,6 +130,7 @@ data class BrowseSourceHomeScreen(
                                     .filterNotNull()
                                     .collectLatest { value = it }
                             } catch (e: Exception) {
+                                logcat(LogPriority.ERROR, e) { "Failed to subscribe to manga: ${manga.title}" }
                                 // Keep the initial manga value if subscription fails
                             }
                         }

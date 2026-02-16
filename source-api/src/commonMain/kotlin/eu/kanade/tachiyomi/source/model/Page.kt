@@ -13,13 +13,12 @@ open class Page(
     val url: String = "",
     var imageUrl: String? = null,
     @Transient var uri: Uri? = null, // Deprecated but can't be deleted due to extensions
+    @Transient var metadata: String? = null
 ) : ProgressListener {
 
     val number: Int
         get() = index + 1
 
-    @Transient
-    var metadata: String? = null
 
     @Transient
     private val _statusFlow = MutableStateFlow<State>(State.Queue)

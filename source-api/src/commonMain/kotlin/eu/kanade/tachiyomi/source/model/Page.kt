@@ -19,6 +19,9 @@ open class Page(
         get() = index + 1
 
     @Transient
+    var metadata: String? = null
+
+    @Transient
     private val _statusFlow = MutableStateFlow<State>(State.Queue)
 
     @Transient

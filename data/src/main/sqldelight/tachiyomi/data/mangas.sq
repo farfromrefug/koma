@@ -31,8 +31,7 @@ CREATE TABLE mangas(
     favorite_modified_at INTEGER,
     version INTEGER NOT NULL DEFAULT 0,
     is_syncing INTEGER NOT NULL DEFAULT 0,
-    notes TEXT NOT NULL DEFAULT "",
-    metadata TEXT
+    notes TEXT NOT NULL DEFAULT ""
 );
 
 CREATE INDEX library_favorite_index ON mangas(favorite) WHERE favorite = 1;
@@ -186,8 +185,8 @@ AND (
 );
 
 insert:
-INSERT INTO mangas(source, url, artist, author, description, genre, tags, moods, language, title, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, notes, metadata)
-VALUES (:source, :url, :artist, :author, :description, :genre, :tags, :moods, :language, :title, :status, :thumbnailUrl, :favorite, :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded, :updateStrategy, :calculateInterval, 0, :version, :notes, :metadata);
+INSERT INTO mangas(source, url, artist, author, description, genre, tags, moods, language, title, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, notes)
+VALUES (:source, :url, :artist, :author, :description, :genre, :tags, :moods, :language, :title, :status, :thumbnailUrl, :favorite, :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded, :updateStrategy, :calculateInterval, 0, :version, :notes);
 
 update:
 UPDATE mangas SET
@@ -215,8 +214,7 @@ UPDATE mangas SET
     calculate_interval = coalesce(:calculateInterval, calculate_interval),
     version = coalesce(:version, version),
     is_syncing = coalesce(:isSyncing, is_syncing),
-    notes = coalesce(:notes, notes),
-    metadata = coalesce(:metadata, metadata)
+    notes = coalesce(:notes, notes)
 WHERE _id = :mangaId;
 
 selectLastInsertedRowId:
@@ -227,12 +225,12 @@ insertNetworkManga {
     INSERT INTO mangas(
         source, url, artist, author, description, genre, tags, moods, language, title, status, thumbnail_url, favorite,
         last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added,
-        update_strategy, calculate_interval, last_modified_at, version, metadata
+        update_strategy, calculate_interval, last_modified_at, version
     )
     SELECT
         :source, :url, :artist, :author, :description, :genre, :tags, :moods, :language, :title, :status, :thumbnailUrl, :favorite,
         :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded,
-        :updateStrategy, :calculateInterval, 0, :version, :metadata
+        :updateStrategy, :calculateInterval, 0, :version
     WHERE NOT EXISTS(SELECT 0 FROM mangas WHERE source = :source AND url = :url);
 
     -- Update the relevant details if applicable and not favorite
@@ -249,7 +247,6 @@ insertNetworkManga {
         language = CASE WHEN :updateDetails THEN :language ELSE language END,
         status = CASE WHEN :updateDetails THEN :status ELSE status END,
         update_strategy = CASE WHEN :updateDetails THEN :updateStrategy ELSE update_strategy END,
-        metadata = CASE WHEN :updateDetails THEN :metadata ELSE metadata END,
         initialized = :updateDetails
     WHERE source = :source
     AND url = :url

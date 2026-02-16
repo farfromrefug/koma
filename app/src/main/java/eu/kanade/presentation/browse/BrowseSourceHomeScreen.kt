@@ -11,7 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.browse.components.BrowseSourceHomeSection
-import eu.kanade.tachiyomi.ui.browse.source.browse.ProcessedHomeSection
+import eu.kanade.tachiyomi.source.model.HomeSection
+import mihon.domain.manga.model.toDomainManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.screens.EmptyScreen
@@ -24,13 +25,14 @@ import tachiyomi.presentation.core.i18n.stringResource
  */
 @Composable
 fun BrowseSourceHomeContent(
-    sections: List<ProcessedHomeSection>?,
+    sections: List<HomeSection>?,
     isLoading: Boolean,
+    sourceId: Long,
     getManga: @Composable (Manga) -> State<Manga>,
     contentPadding: PaddingValues,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
-    onSectionSeeMoreClick: (ProcessedHomeSection) -> Unit,
+    onSectionSeeMoreClick: (HomeSection) -> Unit,
 ) {
     when {
         isLoading -> {
@@ -49,7 +51,7 @@ fun BrowseSourceHomeContent(
                 items(sections) { section ->
                     BrowseSourceHomeSection(
                         title = section.title,
-                        manga = section.manga,
+                        manga = section.manga.map { it.toDomainManga(sourceId) },
                         hasMore = section.hasMore,
                         getManga = getManga,
                         onMangaClick = onMangaClick,

@@ -19,6 +19,8 @@ import eu.kanade.tachiyomi.source.model.HomeSection
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -45,22 +47,11 @@ import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import kotlinx.coroutines.flow.SharingStarted
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.toMangaUpdate
 import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.isLocal
 import java.time.Instant
-
-/**
- * Processed home section with domain Manga instead of SManga
- */
-data class ProcessedHomeSection(
-    val title: String,
-    val manga: List<Manga>,
-    val hasMore: Boolean = false,
-    val sectionId: String? = null,
-)
 
 /**
  * Screen model for the browse source home screen that displays sections of manga.
@@ -109,14 +100,20 @@ class BrowseSourceHomeScreenModel(
             try {
                 val homePage = source.getHomePage()
                 
-                // Convert sections and insert manga into database
+                // Convert SManga to domain Manga and insert into database
                 val processedSections = homePage.sections.map { section ->
                     val domainManga = section.manga.map { it.toDomainManga(sourceId) }
                     val mangaWithIds = networkToLocalManga(domainManga)
                     
-                    ProcessedHomeSection(
+                    // Create new HomeSection with manga that have database IDs
+                    HomeSection(
                         title = section.title,
-                        manga = mangaWithIds,
+                        manga = mangaWithIds.map { manga ->
+                            manga.toSManga().apply {
+                                // Preserve metadata if present
+                                metadata = section.manga.find { it.url == manga.url }?.metadata
+                            }
+                        },
                         hasMore = section.hasMore,
                         sectionId = section.sectionId,
                     )
@@ -344,7 +341,7 @@ class BrowseSourceHomeScreenModel(
 
     @Immutable
     data class State(
-        val sections: List<ProcessedHomeSection>? = null,
+        val sections: List<HomeSection>? = null,
         val isLoading: Boolean = false,
         val dialog: Dialog? = null,
     )

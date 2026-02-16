@@ -98,8 +98,8 @@ data class BrowseSourceHomeScreen(
         Scaffold(
             topBar = {
                 BrowseSourceToolbar(
-                    searchQuery = null,
-                    onSearchQueryChange = { },
+                    searchQuery = state.toolbarQuery,
+                    onSearchQueryChange = screenModel::setToolbarQuery,
                     source = screenModel.source,
                     displayMode = null,
                     onDisplayModeChange = { },
@@ -108,7 +108,8 @@ data class BrowseSourceHomeScreen(
                     onHelpClick = { },
                     onSettingsClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
                     onSearch = { query ->
-                        // Navigate to regular browse screen with search query
+                        // Update screen model state and navigate to browse screen
+                        screenModel.search(query)
                         navigator.push(BrowseSourceScreen(sourceId, query))
                     },
                     onRefresh = screenModel::refresh,

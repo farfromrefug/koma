@@ -373,11 +373,29 @@ class BrowseSourceHomeScreenModel(
         data class Migrate(val target: Manga, val current: Manga) : Dialog
     }
 
+    /**
+     * Set the toolbar search query.
+     */
+    fun setToolbarQuery(query: String?) {
+        mutableState.update { it.copy(toolbarQuery = query) }
+    }
+
+    /**
+     * Perform a search with the current toolbar query.
+     * This will navigate to the browse screen with the search query.
+     */
+    fun search(query: String? = null) {
+        // Search is handled by navigating to the browse screen
+        // The actual navigation happens in the UI layer
+        mutableState.update { it.copy(toolbarQuery = query ?: state.value.toolbarQuery) }
+    }
+
     @Immutable
     data class State(
         val sections: List<HomeSection>? = null,
         val isLoading: Boolean = false,
         val dialog: Dialog? = null,
         val loadedSections: Set<String> = emptySet(),
+        val toolbarQuery: String? = null,
     )
 }

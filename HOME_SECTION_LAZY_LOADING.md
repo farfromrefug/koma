@@ -174,7 +174,9 @@ override suspend fun getHomeSectionManga(sectionId: String, page: Int): MangasPa
 3. As user scrolls down, each section:
    - Shows loading indicator
    - Calls `getHomeSectionManga(sectionId, page=1)`
-   - Displays manga once loaded
+   - **If empty result + hasMore=false**: Section is hidden
+   - **If empty result + hasMore=true**: Shows "No results found"
+   - **If has manga**: Displays manga once loaded
 
 ### "See More" with Infinite Scroll
 1. User clicks "See More" button on a section
@@ -211,11 +213,15 @@ class SourceHomeSectionPagingSource(
 
 1. **Use sectionId consistently**: Same ID for initial section and pagination
 2. **Handle unknown sectionIds**: Return empty MangasPage if sectionId not recognized
-3. **Set hasMore appropriately**: Only true if there's a "See More" page
+3. **Set hasMore appropriately**: 
+   - Only true if there's a "See More" page with actual content
+   - Set to false if section has no more content to avoid showing empty "See More"
+   - **Important**: Sections with empty results and hasMore=false will be automatically hidden
 4. **Consider performance**: 
    - Lazy loading best for 5+ sections
    - Pre-loading fine for 2-3 small sections
 5. **Pagination**: Start from page 1, increment for each load
+6. **Empty sections**: If a section might be empty, set hasMore=false to auto-hide it
 
 ## Migration from Old Home Screen
 
@@ -261,7 +267,8 @@ Common issues:
 1. **Manga not loading**: Check that sectionId is set when manga list is empty
 2. **"See More" not working**: Ensure hasMore=true and sectionId is not null
 3. **Pagination broken**: Verify getHomeSectionManga returns proper hasNextPage
-4. **Loading forever**: Check for exceptions in getHomeSectionManga
+4. **Section disappears**: Section is auto-hidden if empty + hasMore=false (this is intentional)
+5. **Section shows "No results"**: Section loaded but empty with hasMore=true
 
 Add logging:
 ```kotlin
@@ -274,3 +281,13 @@ override suspend fun getHomeSectionManga(sectionId: String, page: Int): MangasPa
     return result
 }
 ```
+
+### Section Visibility Rules
+
+| Condition | Result |
+|-----------|--------|
+| Section has manga | ✓ Visible |
+| Empty + hasMore=true | ✓ Visible (shows "No results") |
+| Empty + hasMore=false | ✗ Hidden |
+| Not loaded yet | ✓ Visible (shows loading spinner) |
+| Load error | ✓ Visible (shows "No results") |

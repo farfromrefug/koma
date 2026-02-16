@@ -136,24 +136,37 @@ class BrowseSourceHomeScreenModel(
                 val domainManga = mangasPage.mangas.map { it.toDomainManga(sourceId) }
                 val mangaWithIds = networkToLocalManga(domainManga)
                 
-                // Update the specific section with loaded manga
+                // Update the specific section with loaded manga and mark as loaded
                 mutableState.update { state ->
-                    val updatedSections = state.sections?.map { section ->
+                    val updatedSections = state.sections?.mapNotNull { section ->
                         if (section.sectionId == sectionId) {
-                            HomeSection(
+                            val updatedSection = HomeSection(
                                 title = section.title,
                                 manga = mangaWithIds.map { it.toSManga() },
                                 hasMore = mangasPage.hasNextPage,
                                 sectionId = section.sectionId,
                             )
+                            // Hide section if it's empty and has no more content
+                            if (updatedSection.manga.isEmpty() && !updatedSection.hasMore) {
+                                null // Filter out this section
+                            } else {
+                                updatedSection
+                            }
                         } else {
                             section
                         }
                     }
-                    state.copy(sections = updatedSections)
+                    state.copy(
+                        sections = updatedSections,
+                        loadedSections = state.loadedSections + sectionId,
+                    )
                 }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Failed to load section manga for $sectionId" }
+                // Mark section as loaded even on error to prevent infinite loading
+                mutableState.update { state ->
+                    state.copy(loadedSections = state.loadedSections + sectionId)
+                }
             }
         }
     }
@@ -365,5 +378,6 @@ class BrowseSourceHomeScreenModel(
         val sections: List<HomeSection>? = null,
         val isLoading: Boolean = false,
         val dialog: Dialog? = null,
+        val loadedSections: Set<String> = emptySet(),
     )
 }

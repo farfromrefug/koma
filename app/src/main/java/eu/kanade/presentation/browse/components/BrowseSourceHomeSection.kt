@@ -44,6 +44,7 @@ fun BrowseSourceHomeSection(
     manga: List<Manga>,
     hasMore: Boolean,
     sectionId: String?,
+    isLoaded: Boolean,
     getManga: @Composable (Manga) -> State<Manga>,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
@@ -53,7 +54,7 @@ fun BrowseSourceHomeSection(
 ) {
     // Lazy load section manga if section has no manga and has a sectionId
     LaunchedEffect(sectionId) {
-        if (manga.isEmpty() && sectionId != null) {
+        if (manga.isEmpty() && sectionId != null && !isLoaded) {
             onLoadSection(sectionId)
         }
     }
@@ -81,9 +82,9 @@ fun BrowseSourceHomeSection(
 
         // Horizontal list of manga
         if (manga.isEmpty()) {
-            // Show loading indicator if we have a sectionId (meaning we're loading)
-            // Otherwise show "no results" message
-            if (sectionId != null) {
+            // Show loading indicator only if not yet loaded
+            // Show "no results" if loaded but empty
+            if (!isLoaded) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -98,6 +99,12 @@ fun BrowseSourceHomeSection(
                     modifier = Modifier
                         .padding(
                             horizontal = MaterialTheme.padding.medium,
+                            vertical = MaterialTheme.padding.small,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        } else {
                             vertical = MaterialTheme.padding.small,
                         ),
                     style = MaterialTheme.typography.bodyMedium,

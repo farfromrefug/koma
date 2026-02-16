@@ -99,26 +99,23 @@ class BrowseSourceHomeScreenModel(
         screenModelScope.launchIO {
             try {
                 val homePage = source.getHomePage()
-                
+
                 // Convert SManga to domain Manga and insert into database
                 val processedSections = homePage.sections.map { section ->
                     val domainManga = section.manga.map { it.toDomainManga(sourceId) }
                     val mangaWithIds = networkToLocalManga(domainManga)
-                    
+
                     // Create new HomeSection with manga that have database IDs
                     HomeSection(
                         title = section.title,
                         manga = mangaWithIds.map { manga ->
-                            manga.toSManga().apply {
-                                // Preserve metadata if present
-                                metadata = section.manga.find { it.url == manga.url }?.metadata
-                            }
+                            manga.toSManga()
                         },
                         hasMore = section.hasMore,
                         sectionId = section.sectionId,
                     )
                 }
-                
+
                 mutableState.update {
                     it.copy(
                         sections = processedSections,

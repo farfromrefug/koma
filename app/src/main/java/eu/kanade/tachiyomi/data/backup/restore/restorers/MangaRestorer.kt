@@ -135,7 +135,6 @@ class MangaRestorer(
                 mangaId = manga.id,
                 updateStrategy = manga.updateStrategy.let(UpdateStrategyColumnAdapter::encode),
                 version = manga.version,
-                metadata = manga.metadata,
                 isSyncing = 1,
                 notes = manga.notes,
             )
@@ -285,7 +284,6 @@ class MangaRestorer(
                 dateAdded = manga.dateAdded,
                 updateStrategy = manga.updateStrategy,
                 version = manga.version,
-                metadata = manga.metadata,
                 notes = manga.notes,
             )
             mangasQueries.selectLastInsertedRowId()

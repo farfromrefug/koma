@@ -90,6 +90,7 @@ class BrowseSourceHomeScreenModel(
 
     /**
      * Load the home page sections from the source.
+     * This now loads section metadata only; manga will be loaded per section on demand.
      */
     private fun loadHomePage() {
         if (source !is CatalogueSource) return
@@ -99,26 +100,11 @@ class BrowseSourceHomeScreenModel(
         screenModelScope.launchIO {
             try {
                 val homePage = source.getHomePage()
-
-                // Convert SManga to domain Manga and insert into database
-                val processedSections = homePage.sections.map { section ->
-                    val domainManga = section.manga.map { it.toDomainManga(sourceId) }
-                    val mangaWithIds = networkToLocalManga(domainManga)
-
-                    // Create new HomeSection with manga that have database IDs
-                    HomeSection(
-                        title = section.title,
-                        manga = mangaWithIds.map { manga ->
-                            manga.toSManga()
-                        },
-                        hasMore = section.hasMore,
-                        sectionId = section.sectionId,
-                    )
-                }
-
+                
+                // Sections can start with empty manga - they'll be loaded lazily
                 mutableState.update {
                     it.copy(
-                        sections = processedSections,
+                        sections = homePage.sections,
                         isLoading = false,
                     )
                 }
@@ -130,6 +116,44 @@ class BrowseSourceHomeScreenModel(
                         isLoading = false,
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Load manga for a specific section.
+     * This is called lazily when a section becomes visible or when initially loading sections with no manga.
+     */
+    fun loadSectionManga(sectionId: String) {
+        if (source !is CatalogueSource) return
+        
+        screenModelScope.launchIO {
+            try {
+                // Load first page of manga for this section
+                val mangasPage = source.getHomeSectionManga(sectionId, page = 1)
+                
+                // Convert and insert into database
+                val domainManga = mangasPage.mangas.map { it.toDomainManga(sourceId) }
+                val mangaWithIds = networkToLocalManga(domainManga)
+                
+                // Update the specific section with loaded manga
+                mutableState.update { state ->
+                    val updatedSections = state.sections?.map { section ->
+                        if (section.sectionId == sectionId) {
+                            HomeSection(
+                                title = section.title,
+                                manga = mangaWithIds.map { it.toSManga() },
+                                hasMore = mangasPage.hasNextPage,
+                                sectionId = section.sectionId,
+                            )
+                        } else {
+                            section
+                        }
+                    }
+                    state.copy(sections = updatedSections)
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to load section manga for $sectionId" }
             }
         }
     }

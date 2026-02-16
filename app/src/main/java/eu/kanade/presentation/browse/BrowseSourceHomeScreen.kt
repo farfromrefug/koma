@@ -33,6 +33,7 @@ fun BrowseSourceHomeContent(
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
     onSectionSeeMoreClick: (HomeSection) -> Unit,
+    onLoadSection: (String) -> Unit,
 ) {
     when {
         isLoading -> {
@@ -53,10 +54,12 @@ fun BrowseSourceHomeContent(
                         title = section.title,
                         manga = section.manga.map { it.toDomainManga(sourceId) },
                         hasMore = section.hasMore,
+                        sectionId = section.sectionId,
                         getManga = getManga,
                         onMangaClick = onMangaClick,
                         onMangaLongClick = onMangaLongClick,
                         onSeeMoreClick = { onSectionSeeMoreClick(section) },
+                        onLoadSection = onLoadSection,
                     )
                     Spacer(modifier = Modifier.height(MaterialTheme.padding.medium))
                 }

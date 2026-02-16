@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,12 +43,21 @@ fun BrowseSourceHomeSection(
     title: String,
     manga: List<Manga>,
     hasMore: Boolean,
+    sectionId: String?,
     getManga: @Composable (Manga) -> State<Manga>,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
     onSeeMoreClick: () -> Unit,
+    onLoadSection: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Lazy load section manga if section has no manga and has a sectionId
+    LaunchedEffect(sectionId) {
+        if (manga.isEmpty() && sectionId != null) {
+            onLoadSection(sectionId)
+        }
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
         // Section header with title and "See More" button
         Row(
@@ -70,15 +81,28 @@ fun BrowseSourceHomeSection(
 
         // Horizontal list of manga
         if (manga.isEmpty()) {
-            Text(
-                text = stringResource(MR.strings.no_results_found),
-                modifier = Modifier
-                    .padding(
-                        horizontal = MaterialTheme.padding.medium,
-                        vertical = MaterialTheme.padding.small,
-                    ),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            // Show loading indicator if we have a sectionId (meaning we're loading)
+            // Otherwise show "no results" message
+            if (sectionId != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(MaterialTheme.padding.medium),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Text(
+                    text = stringResource(MR.strings.no_results_found),
+                    modifier = Modifier
+                        .padding(
+                            horizontal = MaterialTheme.padding.medium,
+                            vertical = MaterialTheme.padding.small,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         } else {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = MaterialTheme.padding.medium),

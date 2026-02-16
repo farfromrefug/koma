@@ -31,11 +31,27 @@ interface CatalogueSource : Source {
      * Get the home page with sections of manga.
      * This method should only be called if shouldShowNewExtensionHome() returns true.
      * 
+     * Note: Sections can optionally start with empty manga lists. If a section has no manga,
+     * the app will call getHomeSectionManga() to fetch them lazily when the section becomes visible.
+     * 
      * @since extensions-lib TBD
      * @return A HomePage object containing sections of manga to display.
      */
     suspend fun getHomePage(): HomePage {
         throw UnsupportedOperationException("getHomePage is not supported by this source")
+    }
+
+    /**
+     * Get manga for a specific home section with pagination support.
+     * This method is called to lazy-load manga for a section or to fetch more items when "See More" is clicked.
+     * 
+     * @since extensions-lib TBD
+     * @param sectionId The identifier of the section to fetch manga for (from HomeSection.sectionId).
+     * @param page The page number to retrieve (starts at 1).
+     * @return A MangasPage containing the manga for this section and whether there are more pages.
+     */
+    suspend fun getHomeSectionManga(sectionId: String, page: Int): MangasPage {
+        throw UnsupportedOperationException("getHomeSectionManga is not supported by this source")
     }
 
     /**

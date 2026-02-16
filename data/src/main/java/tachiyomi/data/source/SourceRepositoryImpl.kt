@@ -87,6 +87,11 @@ class SourceRepositoryImpl(
         return SourceLatestPagingSource(source)
     }
 
+    override fun getHomeSection(sourceId: Long, sectionId: String): SourcePagingSource {
+        val source = sourceManager.get(sourceId) as CatalogueSource
+        return SourceHomeSectionPagingSource(source, sectionId)
+    }
+
     private fun mapSourceToDomainSource(source: Source): DomainSource = DomainSource(
         id = source.id,
         lang = source.lang,

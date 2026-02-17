@@ -268,6 +268,7 @@ actual class LocalSource(
         comicInfo.title?.let { chapter.name = it.value }
         comicInfo.number?.value?.toFloatOrNull()?.let { chapter.chapter_number = it }
         comicInfo.translator?.let { chapter.scanlator = it.value }
+        comicInfo.pageCount?.value?.toLongOrNull()?.let { chapter.total_pages = it }
     }
 
     // Chapters

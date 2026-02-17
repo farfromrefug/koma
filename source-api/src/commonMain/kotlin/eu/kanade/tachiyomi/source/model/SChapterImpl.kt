@@ -25,4 +25,6 @@ class SChapterImpl : SChapter {
     override var moods: String? = null
 
     override var language: String? = null
+
+    override var total_pages: Long? = null
 }

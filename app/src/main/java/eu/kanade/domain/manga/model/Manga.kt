@@ -125,5 +125,5 @@ fun getComicInfo(
     colorist = null,
     letterer = null,
     coverArtist = null,
-    pageCount = ComicInfo.PageCount(chapter.totalPages.toString()),
+    pageCount = chapter.totalPages.takeIf { it > 0 }?.let { ComicInfo.PageCount(it.toString()) },
 )

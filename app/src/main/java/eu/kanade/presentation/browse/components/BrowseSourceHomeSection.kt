@@ -105,12 +105,6 @@ fun BrowseSourceHomeSection(
                 )
             }
         } else {
-                            vertical = MaterialTheme.padding.small,
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        } else {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = MaterialTheme.padding.medium),
                 horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),

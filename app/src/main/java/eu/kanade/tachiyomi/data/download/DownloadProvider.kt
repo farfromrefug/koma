@@ -144,19 +144,20 @@ class DownloadProvider(
      * @param source the source of the manga.
      */
     fun findMangaDir(mangaTitle: String, source: Source): UniFile? {
-        val mangaDirName = getMangaDirName(mangaTitle)
-
         // Local source always uses local source directory
         if (source.id == LocalSource.ID) {
+            val mangaDirName = getMangaDirName(mangaTitle)
             return localSourceDir?.findFile(mangaDirName)
         }
 
         // For other sources, check local source directory first if downloadToLocalSource is enabled
         if (downloadPreferences.downloadToLocalSource().get()) {
-            localSourceDir?.findFile(mangaDirName)?.let { return it }
+            val localMangaDirName = getLocalSourceMangaDirName(mangaTitle)
+            localSourceDir?.findFile(localMangaDirName)?.let { return it }
         }
 
         // Check downloads directory for non-local sources
+        val mangaDirName = getMangaDirName(mangaTitle)
         val sourceDir = downloadsDir?.findFile(getSourceDirName(source))
         return sourceDir?.findFile(mangaDirName)
     }
@@ -166,6 +167,7 @@ class DownloadProvider(
      *
      * @param chapterName the name of the chapter to query.
      * @param chapterScanlator scanlator of the chapter to query
+     * @param chapterUrl url of the chapter to query
      * @param mangaTitle the title of the manga to query.
      * @param source the source of the chapter.
      */
@@ -177,9 +179,20 @@ class DownloadProvider(
         source: Source,
     ): UniFile? {
         val mangaDir = findMangaDir(mangaTitle, source)
-        return getValidChapterDirNames(chapterName, chapterScanlator, chapterUrl).asSequence()
+        
+        // Try standard chapter dir names first
+        val foundDir = getValidChapterDirNames(chapterName, chapterScanlator, chapterUrl).asSequence()
             .mapNotNull { mangaDir?.findFile(it) }
             .firstOrNull()
+            
+        if (foundDir != null) {
+            return foundDir
+        }
+        
+        // If in local source directory, also try local source template names
+        // Note: We can't pass chapter number/date here since this function doesn't have that info
+        // The caller should use findChapterDirs when full chapter metadata is available
+        return null
     }
 
     /**
@@ -191,10 +204,39 @@ class DownloadProvider(
      */
     fun findChapterDirs(chapters: List<Chapter>, manga: Manga, source: Source): Pair<UniFile?, List<UniFile>> {
         val mangaDir = findMangaDir(manga.title, source) ?: return null to emptyList()
+        
+        // Check if we're looking in local source directory
+        val isLocalSourceDir = downloadPreferences.downloadToLocalSource().get() && 
+                              source.id != LocalSource.ID &&
+                              mangaDir.uri == localSourceDir?.findFile(getLocalSourceMangaDirName(manga.title))?.uri
+        
         return mangaDir to chapters.mapNotNull { chapter ->
-            getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).asSequence()
+            // Try standard chapter dir names first
+            val standardNames = getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url)
+            val foundDir = standardNames.asSequence()
                 .mapNotNull { mangaDir.findFile(it) }
                 .firstOrNull()
+            
+            if (foundDir != null) {
+                return@mapNotNull foundDir
+            }
+            
+            // If in local source directory, also try local source template names
+            if (isLocalSourceDir && (chapter.chapterNumber >= 0 || chapter.dateUpload > 0)) {
+                val localSourceNames = getValidLocalSourceChapterDirNames(
+                    chapter.name,
+                    chapter.chapterNumber,
+                    chapter.scanlator,
+                    manga.title,
+                    chapter.url,
+                    chapter.dateUpload,
+                )
+                localSourceNames.asSequence()
+                    .mapNotNull { mangaDir.findFile(it) }
+                    .firstOrNull()
+            } else {
+                null
+            }
         }
     }
 
@@ -334,13 +376,13 @@ class DownloadProvider(
             dirName = sanitizedChapterName
         }
 
-        // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
+        // No hash appended for local source to allow overwriting on re-download
+        // Subtract 4 bytes for .cbz extension
         dirName = DiskUtil.buildValidFilename(
             dirName,
-            DiskUtil.MAX_FILE_NAME_BYTES - 11,
+            DiskUtil.MAX_FILE_NAME_BYTES - 4,
             libraryPreferences.disallowNonAsciiFilenames().get(),
         )
-        dirName += "_" + md5(chapterUrl).take(6)
         return dirName
     }
 
@@ -410,6 +452,111 @@ class DownloadProvider(
      */
     fun getChapterUrlHashSuffix(chapterUrl: String): String {
         return "_" + md5(chapterUrl).take(6)
+    }
+
+    /**
+     * Returns valid downloaded chapter directory names for local source downloads.
+     * Includes both new format (without hash) and legacy format (with hash) for backward compatibility.
+     *
+     * @param chapterName the name of the chapter to query.
+     * @param chapterNumber the chapter number.
+     * @param chapterScanlator scanlator of the chapter to query.
+     * @param mangaTitle the title of the manga.
+     * @param chapterUrl url of the chapter to query.
+     * @param dateUpload upload date of the chapter (epoch milliseconds).
+     */
+    fun getValidLocalSourceChapterDirNames(
+        chapterName: String,
+        chapterNumber: Double,
+        chapterScanlator: String?,
+        mangaTitle: String,
+        chapterUrl: String,
+        dateUpload: Long = -1,
+    ): List<String> {
+        // Get the current name format (without hash)
+        val currentDirName = getLocalSourceChapterDirName(
+            chapterName,
+            chapterNumber,
+            chapterScanlator,
+            mangaTitle,
+            chapterUrl,
+            dateUpload,
+        )
+
+        // Get the legacy name format (with hash) for backward compatibility
+        val template = downloadPreferences.localSourceChapterFolderTemplate().get()
+        val sanitizedChapterName = sanitizeChapterName(chapterName)
+
+        // Format chapter number (remove trailing zeros), treat -1 as empty
+        val chapterNumberStr = if (chapterNumber >= 0) {
+            if (chapterNumber == chapterNumber.toLong().toDouble()) {
+                chapterNumber.toLong().toString()
+            } else {
+                chapterNumber.toString()
+            }
+        } else {
+            ""
+        }
+
+        // Format publish date (extract year if available)
+        val publishDateStr = if (dateUpload > 0) {
+            val year = java.time.Instant.ofEpochMilli(dateUpload)
+                .atZone(java.time.ZoneId.systemDefault())
+                .year
+            year.toString()
+        } else {
+            ""
+        }
+
+        // Process optional sections for legacy format
+        var processedTemplate = template
+        val optionalRegex = """\[([^\[\]]+)\]""".toRegex()
+        processedTemplate = optionalRegex.replace(processedTemplate) { matchResult ->
+            val content = matchResult.groupValues[1]
+            val hasEmptyPlaceholder = when {
+                content.contains(DownloadPreferences.CHAPTER_NUMBER_PLACEHOLDER) && chapterNumberStr.isEmpty() -> true
+                content.contains(DownloadPreferences.CHAPTER_SCANLATOR_PLACEHOLDER) && chapterScanlator.isNullOrBlank() -> true
+                content.contains(DownloadPreferences.PUBLISH_DATE_PLACEHOLDER) && publishDateStr.isEmpty() -> true
+                content.contains(DownloadPreferences.CHAPTER_NAME_PLACEHOLDER) && sanitizedChapterName.isBlank() -> true
+                content.contains(DownloadPreferences.MANGA_TITLE_PLACEHOLDER) && mangaTitle.isBlank() -> true
+                else -> false
+            }
+            if (hasEmptyPlaceholder) "" else content
+        }
+
+        var legacyDirName = processedTemplate
+            .replace(DownloadPreferences.CHAPTER_NAME_PLACEHOLDER, sanitizedChapterName)
+            .replace(DownloadPreferences.CHAPTER_NUMBER_PLACEHOLDER, chapterNumberStr)
+            .replace(DownloadPreferences.CHAPTER_SCANLATOR_PLACEHOLDER, chapterScanlator ?: "")
+            .replace(DownloadPreferences.MANGA_TITLE_PLACEHOLDER, mangaTitle)
+            .replace(DownloadPreferences.PUBLISH_DATE_PLACEHOLDER, publishDateStr)
+            .trim()
+
+        if (legacyDirName.isBlank()) {
+            legacyDirName = sanitizedChapterName
+        }
+
+        // Legacy format with hash
+        legacyDirName = DiskUtil.buildValidFilename(
+            legacyDirName,
+            DiskUtil.MAX_FILE_NAME_BYTES - 11,
+            libraryPreferences.disallowNonAsciiFilenames().get(),
+        )
+        legacyDirName += "_" + md5(chapterUrl).take(6)
+
+        return buildList {
+            // Current format (folder of images)
+            add(currentDirName)
+            // Current format (archived)
+            add("$currentDirName.cbz")
+            
+            // Legacy format with hash (folder of images)
+            if (legacyDirName != currentDirName) {
+                add(legacyDirName)
+                // Legacy format (archived)
+                add("$legacyDirName.cbz")
+            }
+        }
     }
 
     /**

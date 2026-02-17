@@ -61,6 +61,7 @@ import mihon.feature.migration.dialog.MigrateMangaDialog
 import mihon.presentation.core.util.collectAsLazyPagingItems
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.domain.source.interactor.GetRemoteManga
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -74,7 +75,8 @@ import uy.kohesive.injekt.api.get
 
 data class BrowseSourceScreen(
     val sourceId: Long,
-    private val listingQuery: String?,
+    private val listingQuery: String? = null,
+    private val sectionId: String? = null,
 ) : Screen(), AssistContentScreen {
 
     private var assistUrl: String? = null
@@ -89,7 +91,11 @@ data class BrowseSourceScreen(
         }
 
         val context = LocalContext.current
-        val screenModel = rememberScreenModel { BrowseSourceScreenModel(context, sourceId, listingQuery) }
+        val query = when {
+            sectionId != null -> "${GetRemoteManga.QUERY_HOME_SECTION_PREFIX}$sectionId"
+            else -> listingQuery
+        }
+        val screenModel = rememberScreenModel { BrowseSourceScreenModel(context, sourceId, query) }
         val state by screenModel.state.collectAsState()
 
         val navigator = LocalNavigator.currentOrThrow

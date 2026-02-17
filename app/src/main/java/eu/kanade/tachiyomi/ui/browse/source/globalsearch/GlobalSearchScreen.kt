@@ -13,6 +13,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.core.util.ifSourcesLoaded
 import eu.kanade.presentation.browse.GlobalSearchScreen
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -20,6 +21,7 @@ import tachiyomi.presentation.core.screens.LoadingScreen
 class GlobalSearchScreen(
     val searchQuery: String = "",
     private val extensionFilter: String? = null,
+    private val sourcesToSearch: List<CatalogueSource>? = null,
 ) : Screen() {
 
     @Composable
@@ -35,6 +37,7 @@ class GlobalSearchScreen(
             GlobalSearchScreenModel(
                 initialQuery = searchQuery,
                 initialExtensionFilter = extensionFilter,
+                sourcesToSearch = sourcesToSearch,
             )
         }
         val state by screenModel.state.collectAsState()

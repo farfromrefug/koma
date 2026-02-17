@@ -34,6 +34,15 @@ class SourceLatestPagingSource(source: CatalogueSource) : BaseSourcePagingSource
     }
 }
 
+class SourceHomeSectionPagingSource(
+    source: CatalogueSource,
+    private val sectionId: String,
+) : BaseSourcePagingSource(source) {
+    override suspend fun requestNextPage(currentPage: Int): MangasPage {
+        return source.getHomeSectionManga(sectionId, currentPage)
+    }
+}
+
 abstract class BaseSourcePagingSource(
     protected val source: CatalogueSource,
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),

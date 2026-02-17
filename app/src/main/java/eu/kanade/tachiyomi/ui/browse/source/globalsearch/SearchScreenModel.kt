@@ -36,6 +36,7 @@ import java.util.concurrent.Executors
 
 abstract class SearchScreenModel(
     initialState: State = State(),
+    private val sourcesToSearch: List<CatalogueSource>? = null,
     sourcePreferences: SourcePreferences = Injekt.get(),
     private val sourceManager: SourceManager = Injekt.get(),
     private val extensionManager: ExtensionManager = Injekt.get(),
@@ -95,6 +96,11 @@ abstract class SearchScreenModel(
     }
 
     private fun getSelectedSources(): List<CatalogueSource> {
+        // If specific sources are provided, use those instead
+        if (sourcesToSearch != null) {
+            return sourcesToSearch
+        }
+
         val enabledSources = getEnabledSources()
 
         val filter = extensionFilter

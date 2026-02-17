@@ -11,7 +11,11 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import mihon.core.archive.archiveReader
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.source.local.LocalSource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
 /**
@@ -33,17 +37,65 @@ internal class DownloadPageLoader(
 
     override suspend fun getPages(): List<ReaderPage> {
         val dbChapter = chapter.chapter
-        val chapterPath = downloadProvider.findChapterDir(
+        var chapterPath = downloadProvider.findChapterDir(
             dbChapter.name,
             dbChapter.scanlator,
             dbChapter.url,
             manga.title,
             source,
         )
+        
+        // If not found and downloadToLocalSource is enabled, try finding in local source directory
+        // using the chapter's metadata to construct template-based names
+        if (chapterPath == null) {
+            val downloadPreferences = Injekt.get<DownloadPreferences>()
+            if (downloadPreferences.downloadToLocalSource().get() && source.id != LocalSource.ID) {
+                chapterPath = findChapterInLocalSource(dbChapter)
+            }
+        }
+        
         return if (chapterPath?.isFile == true) {
             getPagesFromArchive(chapterPath)
         } else {
             getPagesFromDirectory()
+        }
+    }
+    
+    /**
+     * Attempts to find a chapter in the local source directory using chapter metadata.
+     * This is needed when chapters are downloaded to local source with template-based names.
+     */
+    private fun findChapterInLocalSource(dbChapter: tachiyomi.domain.chapter.model.Chapter): UniFile? {
+        val localSourceDir = Injekt.get<tachiyomi.domain.storage.service.StorageManager>()
+            .getLocalSourceDirectory() ?: return null
+        
+        // Get the local source manga directory
+        val localMangaDirName = downloadProvider.getLocalSourceMangaDirName(manga.title)
+        val localMangaDir = localSourceDir.findFile(localMangaDirName) ?: return null
+        
+        // Try to find chapter using local source template names if metadata is available
+        if (dbChapter.chapterNumber >= 0 || dbChapter.dateUpload > 0) {
+            val localSourceNames = downloadProvider.getValidLocalSourceChapterDirNames(
+                dbChapter.name,
+                dbChapter.chapterNumber,
+                dbChapter.scanlator,
+                manga.title,
+                dbChapter.url,
+                dbChapter.dateUpload,
+            )
+            
+            // Try each potential name
+            for (name in localSourceNames) {
+                localMangaDir.findFile(name)?.let { return it }
+                localMangaDir.findFile("$name.cbz")?.let { return it }
+            }
+        }
+        
+        // Fall back to URL hash matching
+        val chapterHash = downloadProvider.getChapterUrlHashSuffix(dbChapter.url)
+        return localMangaDir.listFiles()?.firstOrNull { file ->
+            val fileName = file.name ?: return@firstOrNull false
+            fileName.endsWith(chapterHash) || fileName.endsWith("$chapterHash.cbz")
         }
     }
 

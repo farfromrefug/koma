@@ -4,6 +4,7 @@ import okio.BufferedSource
 import okio.buffer
 import okio.sink
 import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
 
 /**
@@ -38,7 +39,7 @@ fun BufferedSource.saveTo(stream: OutputStream) {
         }
         // Ensure data is synced to disk if it's a FileOutputStream
         // This must be done before closing the stream
-        if (stream is java.io.FileOutputStream) {
+        if (stream is FileOutputStream) {
             stream.fd.sync()
         }
     }

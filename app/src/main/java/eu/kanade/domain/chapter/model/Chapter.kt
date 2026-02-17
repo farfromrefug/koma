@@ -40,7 +40,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
     } else {
         moods
     }
-    val totalPages = sChapter.total_pages ?: totalPages
+    val updatedTotalPages = sChapter.total_pages ?: totalPages
     return this.copy(
         name = sChapter.name,
         url = sChapter.url,
@@ -53,7 +53,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         moods = moods,
         language = language,
         description = description,
-        totalPages = totalPages,
+        totalPages = updatedTotalPages,
     )
 }
 

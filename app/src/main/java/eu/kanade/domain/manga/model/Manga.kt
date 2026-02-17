@@ -110,12 +110,12 @@ fun getComicInfo(
         }
     },
     web = ComicInfo.Web(urls.joinToString(" ")),
-    summary = manga.description?.let { ComicInfo.Summary(it) },
+    summary = (chapter.description ?: manga.description)?.let { ComicInfo.Summary(it) },
     writer = manga.author?.let { ComicInfo.Writer(it) },
     penciller = manga.artist?.let { ComicInfo.Penciller(it) },
     translator = chapter.scanlator?.let { ComicInfo.Translator(it) },
-    genre = manga.genre?.let { ComicInfo.Genre(it.joinToString()) },
-    tags = manga.tags?.let { ComicInfo.Tags(it.joinToString()) },
+    genre = (chapter.genre ?: manga.genre)?.let { ComicInfo.Genre(it.joinToString()) },
+    tags = (chapter.tags ?: manga.tags)?.let { ComicInfo.Tags(it.joinToString()) },
     publishingStatus = ComicInfo.PublishingStatusTachiyomi(
         ComicInfoPublishingStatus.toComicInfoValue(manga.status),
     ),
@@ -125,4 +125,5 @@ fun getComicInfo(
     colorist = null,
     letterer = null,
     coverArtist = null,
+    pageCount = ComicInfo.PageCount(chapter.totalPages.toString()),
 )

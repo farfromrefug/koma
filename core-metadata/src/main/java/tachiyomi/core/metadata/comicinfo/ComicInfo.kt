@@ -28,6 +28,7 @@ fun SManga.getComicInfo() = ComicInfo(
     tags = null,
     categories = null,
     source = null,
+    pageCount = null
 )
 
 fun SManga.copyFromComicInfo(comicInfo: ComicInfo) {
@@ -69,6 +70,7 @@ data class ComicInfo(
     val title: Title?,
     val series: Series?,
     val number: Number?,
+    val pageCount: PageCount?,
     val summary: Summary?,
     val writer: Writer?,
     val penciller: Penciller?,
@@ -103,6 +105,10 @@ data class ComicInfo(
     @Serializable
     @XmlSerialName("Number", "", "")
     data class Number(@XmlValue(true) val value: String = "")
+
+    @Serializable
+    @XmlSerialName("PageCount", "", "")
+    data class PageCount(@XmlValue(true) val value: String = "")
 
     @Serializable
     @XmlSerialName("Summary", "", "")

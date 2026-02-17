@@ -19,6 +19,7 @@ fun Chapter.toSChapter(): SChapter {
         it.tags = tags.orEmpty().joinToString()
         it.moods = moods.orEmpty().joinToString()
         it.language = language
+        it.total_pages = totalPages
     }
 }
 
@@ -39,6 +40,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
     } else {
         moods
     }
+    val finalTotalPages = sChapter.total_pages ?: totalPages
     return this.copy(
         name = sChapter.name,
         url = sChapter.url,
@@ -51,6 +53,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         moods = moods,
         language = language,
         description = description,
+        totalPages = finalTotalPages,
     )
 }
 

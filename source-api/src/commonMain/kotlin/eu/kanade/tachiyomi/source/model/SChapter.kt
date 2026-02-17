@@ -28,6 +28,8 @@ interface SChapter : Serializable {
 
     var thumbnail_url: String?
 
+    var total_pages: Long?
+
     fun getGenres(): List<String>? {
         if (genre.isNullOrBlank()) return null
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
@@ -53,6 +55,7 @@ interface SChapter : Serializable {
         moods = other.moods
         language = other.language
         description = other.description
+        total_pages = other.total_pages
 
     }
 

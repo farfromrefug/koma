@@ -459,7 +459,6 @@ class DownloadCache(
 
         notifyChanges()
     }
-    }
 
     /**
      * Renames a manga in this cache.

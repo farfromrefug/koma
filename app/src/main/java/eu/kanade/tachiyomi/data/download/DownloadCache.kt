@@ -318,11 +318,48 @@ class DownloadCache(
      */
     suspend fun removeChapter(chapter: Chapter, manga: Manga) {
         rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
-            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return
-            provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
-                if (it in mangaDir.chapterDirs) {
-                    mangaDir.chapterDirs -= it
+            // Remove from source-specific directory
+            val sourceDir = rootDownloadsDir.sourceDirs[manga.source]
+            if (sourceDir != null) {
+                val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)]
+                if (mangaDir != null) {
+                    provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
+                        if (it in mangaDir.chapterDirs) {
+                            mangaDir.chapterDirs -= it
+                        }
+                    }
+                }
+            }
+
+            // Also remove from local source directory if downloadToLocalSource is enabled
+            // and this is not already the local source
+            if (downloadPreferences.downloadToLocalSource().get() && manga.source != LocalSource.ID) {
+                val localSourceDir = rootDownloadsDir.sourceDirs[LocalSource.ID]
+                if (localSourceDir != null) {
+                    val localMangaDir = localSourceDir.mangaDirs[provider.getLocalSourceMangaDirName(manga.title)]
+                    if (localMangaDir != null) {
+                        // For local source, check both standard names and local source template names
+                        provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
+                            if (it in localMangaDir.chapterDirs) {
+                                localMangaDir.chapterDirs -= it
+                            }
+                        }
+                        // Also check local source template names if we have chapter metadata
+                        if (chapter.chapterNumber >= 0 || chapter.dateUpload > 0) {
+                            provider.getValidLocalSourceChapterDirNames(
+                                chapter.name,
+                                chapter.chapterNumber,
+                                chapter.scanlator,
+                                manga.title,
+                                chapter.url,
+                                chapter.dateUpload,
+                            ).forEach {
+                                if (it in localMangaDir.chapterDirs) {
+                                    localMangaDir.chapterDirs -= it
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -338,12 +375,51 @@ class DownloadCache(
      */
     suspend fun removeChapters(chapters: List<Chapter>, manga: Manga) {
         rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
-            val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)] ?: return
-            chapters.forEach { chapter ->
-                provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
-                    if (it in mangaDir.chapterDirs) {
-                        mangaDir.chapterDirs -= it
+            // Remove from source-specific directory
+            val sourceDir = rootDownloadsDir.sourceDirs[manga.source]
+            if (sourceDir != null) {
+                val mangaDir = sourceDir.mangaDirs[provider.getMangaDirName(manga.title)]
+                if (mangaDir != null) {
+                    chapters.forEach { chapter ->
+                        provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
+                            if (it in mangaDir.chapterDirs) {
+                                mangaDir.chapterDirs -= it
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Also remove from local source directory if downloadToLocalSource is enabled
+            // and this is not already the local source
+            if (downloadPreferences.downloadToLocalSource().get() && manga.source != LocalSource.ID) {
+                val localSourceDir = rootDownloadsDir.sourceDirs[LocalSource.ID]
+                if (localSourceDir != null) {
+                    val localMangaDir = localSourceDir.mangaDirs[provider.getLocalSourceMangaDirName(manga.title)]
+                    if (localMangaDir != null) {
+                        chapters.forEach { chapter ->
+                            // For local source, check both standard names and local source template names
+                            provider.getValidChapterDirNames(chapter.name, chapter.scanlator, chapter.url).forEach {
+                                if (it in localMangaDir.chapterDirs) {
+                                    localMangaDir.chapterDirs -= it
+                                }
+                            }
+                            // Also check local source template names if we have chapter metadata
+                            if (chapter.chapterNumber >= 0 || chapter.dateUpload > 0) {
+                                provider.getValidLocalSourceChapterDirNames(
+                                    chapter.name,
+                                    chapter.chapterNumber,
+                                    chapter.scanlator,
+                                    manga.title,
+                                    chapter.url,
+                                    chapter.dateUpload,
+                                ).forEach {
+                                    if (it in localMangaDir.chapterDirs) {
+                                        localMangaDir.chapterDirs -= it
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -359,14 +435,30 @@ class DownloadCache(
      */
     suspend fun removeManga(manga: Manga) {
         rootDownloadsDirMutex.withLock {
-            val sourceDir = rootDownloadsDir.sourceDirs[manga.source] ?: return
-            val mangaDirName = provider.getMangaDirName(manga.title)
-            if (sourceDir.mangaDirs.containsKey(mangaDirName)) {
-                sourceDir.mangaDirs -= mangaDirName
+            // Remove from source-specific directory
+            val sourceDir = rootDownloadsDir.sourceDirs[manga.source]
+            if (sourceDir != null) {
+                val mangaDirName = provider.getMangaDirName(manga.title)
+                if (sourceDir.mangaDirs.containsKey(mangaDirName)) {
+                    sourceDir.mangaDirs -= mangaDirName
+                }
+            }
+
+            // Also remove from local source directory if downloadToLocalSource is enabled
+            // and this is not already the local source
+            if (downloadPreferences.downloadToLocalSource().get() && manga.source != LocalSource.ID) {
+                val localSourceDir = rootDownloadsDir.sourceDirs[LocalSource.ID]
+                if (localSourceDir != null) {
+                    val localMangaDirName = provider.getLocalSourceMangaDirName(manga.title)
+                    if (localSourceDir.mangaDirs.containsKey(localMangaDirName)) {
+                        localSourceDir.mangaDirs -= localMangaDirName
+                    }
+                }
             }
         }
 
         notifyChanges()
+    }
     }
 
     /**

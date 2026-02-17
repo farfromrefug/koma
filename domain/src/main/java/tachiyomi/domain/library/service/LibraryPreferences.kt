@@ -212,6 +212,13 @@ class LibraryPreferences(
     fun autoAddLocalMangaToLibrary() = preferenceStore.getBoolean("auto_add_local_manga_to_library", false)
     
     /**
+     * When enabled, prevents creating duplicate manga entries when downloading to local source.
+     * The remote manga will remain in library and access downloaded chapters from local source.
+     * This avoids having both a remote and local manga entry in the library for the same manga.
+     */
+    fun mergeRemoteAndLocalManga() = preferenceStore.getBoolean("merge_remote_and_local_manga", true)
+    
+    /**
      * Number of concurrent workers for local source chapter processing.
      * Lower values use less memory but process slower. Default is 3.
      */

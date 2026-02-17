@@ -236,6 +236,12 @@ object SettingsDownloadScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_download_to_local_source),
                     subtitle = stringResource(MR.strings.pref_download_to_local_source_summary),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = libraryPreferences.mergeRemoteAndLocalManga(),
+                    title = stringResource(MR.strings.pref_merge_remote_and_local_manga),
+                    subtitle = stringResource(MR.strings.pref_merge_remote_and_local_manga_summary),
+                    enabled = downloadToLocalSource,
+                ),
                 Preference.PreferenceItem.TemplateEditTextPreference(
                     preference = downloadPreferences.localSourceMangaFolderTemplate(),
                     title = stringResource(MR.strings.pref_local_source_manga_folder_template),

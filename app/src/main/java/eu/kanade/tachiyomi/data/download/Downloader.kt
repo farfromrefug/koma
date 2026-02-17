@@ -486,6 +486,7 @@ class Downloader(
     /**
      * Handles importing downloaded chapters to local source if configured.
      * This will create or update the local manga entry and add it to the library.
+     * When merge preference is enabled, it skips creating a duplicate library entry.
      *
      * @param download the chapter that was downloaded.
      */
@@ -496,25 +497,31 @@ class Downloader(
             val provider: DownloadProvider = Injekt.get()
             val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get()
             val networkToLocalManga: NetworkToLocalManga = Injekt.get()
+            val libraryPreferences: LibraryPreferences = Injekt.get()
 
             val mangaDirName = provider.getLocalSourceMangaDirName(download.manga.title)
             val localUrl = mangaDirName
             var localManga = getMangaByUrlAndSourceId.await(localUrl, LocalSource.ID)
 
+            // Check if we should merge remote and local manga
+            val shouldMerge = libraryPreferences.mergeRemoteAndLocalManga().get()
+            val remoteMangaInLibrary = download.manga.favorite
+
             if (localManga == null) {
+                // Create local manga entry but don't add to library if merging
                 val manga = Manga.create().copy(
                     url = localUrl,
                     title = mangaDirName,
                     source = LocalSource.ID,
-                    favorite = true,
+                    favorite = if (shouldMerge && remoteMangaInLibrary) false else true,
                 )
                 localManga = networkToLocalManga(manga)
             }
 
             localManga?.let {
-                if (!it.favorite) {
+                // Only add to library if not merging or if remote manga is not in library
+                if (!it.favorite && !(shouldMerge && remoteMangaInLibrary)) {
                     val mangaId = localManga.id
-                    val libraryPreferences: LibraryPreferences = Injekt.get()
                     val updateManga: UpdateManga = Injekt.get()
                     val setMangaCategories: SetMangaCategories = Injekt.get()
                     val getCategories: GetCategories = Injekt.get()
@@ -547,6 +554,7 @@ class Downloader(
                     val sourceManager: SourceManager = Injekt.get()
                     addTracks.bindEnhancedTrackers(localManga, sourceManager.getOrStub(localManga.source))
                 }
+                // Always trigger import job to process chapters
                 LocalMangaImportJob.startNow(context, localManga.id)
             }
         }

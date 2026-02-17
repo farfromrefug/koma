@@ -28,8 +28,10 @@ import eu.kanade.presentation.browse.components.RemoveMangaDialog
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.browse.extension.details.SourcePreferencesScreen
+import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import kotlinx.coroutines.flow.collectLatest
@@ -108,9 +110,15 @@ data class BrowseSourceHomeScreen(
                     onHelpClick = { },
                     onSettingsClick = { navigator.push(SourcePreferencesScreen(sourceId)) },
                     onSearch = { query ->
-                        // Update screen model state and navigate to browse screen
+                        // Navigate to GlobalSearchScreen with only this source
                         screenModel.search(query)
-                        navigator.push(BrowseSourceScreen(sourceId, query))
+                        val source = screenModel.source as? CatalogueSource
+                        if (source != null) {
+                            navigator.push(GlobalSearchScreen(
+                                searchQuery = query ?: "",
+                                sourcesToSearch = listOf(source)
+                            ))
+                        }
                     },
                     onRefresh = screenModel::refresh,
                     showDisplayModeIcon = false,

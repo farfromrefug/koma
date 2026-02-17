@@ -425,12 +425,7 @@ class DownloadProvider(
             // Folder of images
             add(chapterDirName)
             // Local cbz - sanitize the URL component to ensure it's a valid filename
-            val urlComponent = chapterUrl.split("/").last()
-            val sanitizedUrlComponent = DiskUtil.buildValidFilename(
-                urlComponent,
-                disallowNonAscii = libraryPreferences.disallowNonAsciiFilenames().get(),
-            )
-            add(sanitizedUrlComponent)
+            add(chapterUrl.split("/").last())
             // Archived chapters
             add("$chapterDirName.cbz")
 

@@ -114,9 +114,7 @@ data class BrowseSourceHomeScreen(
                         screenModel.search(query)
                         val source = screenModel.source as? CatalogueSource
                         if (source != null) {
-                            navigator.push(GlobalSearchScreen(
-                                searchQuery = query ?: "",
-                                sourcesToSearch = listOf(source)
+                            navigator.push(BrowseSourceScreen(source.id, query ?: ""
                             ))
                         }
                     },
@@ -139,7 +137,7 @@ data class BrowseSourceHomeScreen(
                                 .filterNotNull()
                                 .collectLatest { value = it }
                         } catch (e: Exception) {
-                            logcat(LogPriority.ERROR, e) { 
+                            logcat(LogPriority.ERROR, e) {
                                 "Failed to subscribe to manga: title=${manga.title}, url=${manga.url}, source=${manga.source}"
                             }
                             // Keep the initial manga value if subscription fails

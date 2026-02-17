@@ -36,5 +36,10 @@ fun BufferedSource.saveTo(stream: OutputStream) {
             it.writeAll(input)
             it.flush()
         }
+        // Ensure data is synced to disk if it's a FileOutputStream
+        // This must be done before closing the stream
+        if (stream is java.io.FileOutputStream) {
+            stream.fd.sync()
+        }
     }
 }

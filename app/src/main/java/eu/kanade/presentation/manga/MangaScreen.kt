@@ -1573,6 +1573,7 @@ private fun LazyListScope.sharedChapterItems(
                     onChapterSwipe = {
                         onChapterSwipe(item, it)
                     },
+                    banners = item.chapter.banners,
                 )
             }
         }
@@ -1689,7 +1690,8 @@ private fun LazyListScope.sharedChapterGridItems(
                                 },
                                 date = relativeDateText(item.chapter.dateUpload),
                                 readProgress = readProgress,
-                                onInfoClick = { onShowChapterInfo?.invoke(item.chapter) }
+                                onInfoClick = { onShowChapterInfo?.invoke(item.chapter) },
+                                banners = item.chapter.banners,
                             )
                         }
                         ChapterDisplayMode.ComfortableGrid -> {
@@ -1722,7 +1724,8 @@ private fun LazyListScope.sharedChapterGridItems(
                                 },
                                 date = relativeDateText(item.chapter.dateUpload),
                                 readProgress = readProgress,
-                                onInfoClick = { onShowChapterInfo?.invoke(item.chapter) }
+                                onInfoClick = { onShowChapterInfo?.invoke(item.chapter) },
+                                banners = item.chapter.banners,
                             )
                         }
                         // List mode is handled by sharedChapterItems, this branch should not be reached

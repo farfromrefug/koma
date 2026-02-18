@@ -45,35 +45,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
     }
     val finalTotalPages = sChapter.total_pages ?: totalPages
     
-    // Create a temporary DbChapter to parse banners from JSON
-    val bannersFromSChapter = if (sChapter.banners != null) {
-        object : DbChapter {
-            override var banners: String? = sChapter.banners
-            override var id: Long? = null
-            override var manga_id: Long? = null
-            override var read: Boolean = false
-            override var bookmark: Boolean = false
-            override var last_page_read: Int = 0
-            override var date_fetch: Long = 0
-            override var source_order: Int = 0
-            override var last_modified: Long = 0
-            override var version: Long = 0
-            override var url: String = ""
-            override var name: String = ""
-            override var date_upload: Long = 0
-            override var chapter_number: Float = 0f
-            override var scanlator: String? = null
-            override var description: String? = null
-            override var genre: String? = null
-            override var tags: String? = null
-            override var moods: String? = null
-            override var language: String? = null
-            override var thumbnail_url: String? = null
-            override var total_pages: Long? = null
-        }.getBannersFromJson()
-    } else {
-        banners
-    }
+    val bannersFromSChapter = parseBannersFromJson(sChapter.banners) ?: banners
     
     return this.copy(
         name = sChapter.name,

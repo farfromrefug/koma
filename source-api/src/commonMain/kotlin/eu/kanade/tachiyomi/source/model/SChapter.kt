@@ -45,10 +45,6 @@ interface SChapter : Serializable {
         return moods?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
     }
 
-    fun getBanners(): String? {
-        return banners
-    }
-
     fun copyFrom(other: SChapter) {
         name = other.name
         url = other.url

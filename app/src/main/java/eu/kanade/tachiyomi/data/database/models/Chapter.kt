@@ -41,15 +41,19 @@ private data class SerializedChapterTag(
     val color: Long,
 )
 
-fun Chapter.getBannersFromJson(): List<ChapterTag>? {
-    if (banners.isNullOrBlank()) return null
+fun parseBannersFromJson(bannersJson: String?): List<ChapterTag>? {
+    if (bannersJson.isNullOrBlank()) return null
     return try {
-        Json.decodeFromString<List<SerializedChapterTag>>(banners!!).map {
+        Json.decodeFromString<List<SerializedChapterTag>>(bannersJson).map {
             ChapterTag(text = it.text, color = it.color)
         }
     } catch (e: Exception) {
         null
     }
+}
+
+fun Chapter.getBannersFromJson(): List<ChapterTag>? {
+    return parseBannersFromJson(banners)
 }
 
 fun List<ChapterTag>?.toJsonString(): String? {
@@ -90,6 +94,6 @@ fun Chapter.toDomainChapter(): DomainChapter? {
         genre = getGenres(),
         tags = getTags(),
         moods = getMoods(),
-        banners = getBannersFromJson(),
+        banners = parseBannersFromJson(banners),
     )
 }

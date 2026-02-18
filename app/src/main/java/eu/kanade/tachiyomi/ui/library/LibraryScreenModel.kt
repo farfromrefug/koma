@@ -166,15 +166,18 @@ class LibraryScreenModel(
         }
 
         screenModelScope.launchIO {
-            state
-                .dropWhile { !it.libraryData.isInitialized }
-                .map { it.libraryData }
-                .distinctUntilChanged()
-                .map { data ->
-                    data.favorites
-                        .applyGrouping(data.categories, data.showSystemCategory)
-                        .applySort(data.favoritesById, data.tracksMap, data.loggedInTrackerIds)
-                }
+            combine(
+                state
+                    .dropWhile { !it.libraryData.isInitialized }
+                    .map { it.libraryData }
+                    .distinctUntilChanged(),
+                libraryPreferences.hiddenCategories().changes(),
+            ) { data, hiddenCategories ->
+                val hiddenCategoryIds = hiddenCategories.mapNotNull { it.toLongOrNull() }.toSet()
+                data.favorites
+                    .applyGrouping(data.categories, data.showSystemCategory, hiddenCategoryIds)
+                    .applySort(data.favoritesById, data.tracksMap, data.loggedInTrackerIds)
+            }
                 .collectLatest {
                     mutableState.update { state ->
                         state.copy(
@@ -304,6 +307,7 @@ class LibraryScreenModel(
     private fun List<LibraryItem>.applyGrouping(
         categories: List<Category>,
         showSystemCategory: Boolean,
+        hiddenCategoryIds: Set<Long>,
     ): Map<Category, List</* LibraryItem */ Long>> {
         val groupCache = mutableMapOf</* Category */ Long, MutableList</* LibraryItem */ Long>>()
         forEach { item ->
@@ -311,11 +315,6 @@ class LibraryScreenModel(
                 groupCache.getOrPut(categoryId) { mutableListOf() }.add(item.id)
             }
         }
-        
-        // Get hidden categories from preferences
-        val hiddenCategoryIds = libraryPreferences.hiddenCategories().get()
-            .mapNotNull { it.toLongOrNull() }
-            .toSet()
         
         return categories.filter { category ->
             (showSystemCategory || !category.isSystemCategory) && !hiddenCategoryIds.contains(category.id)

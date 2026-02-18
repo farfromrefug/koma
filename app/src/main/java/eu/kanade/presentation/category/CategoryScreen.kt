@@ -35,6 +35,7 @@ fun CategoryScreen(
     onClickCreate: () -> Unit,
     onClickRename: (Category) -> Unit,
     onClickDelete: (Category) -> Unit,
+    onClickToggleHidden: (Category) -> Unit,
     onChangeOrder: (Category, Int) -> Unit,
     navigateUp: () -> Unit,
 ) {
@@ -64,10 +65,12 @@ fun CategoryScreen(
 
         CategoryContent(
             categories = state.categories,
+            hiddenCategoryIds = state.hiddenCategoryIds,
             lazyListState = lazyListState,
             paddingValues = paddingValues,
             onClickRename = onClickRename,
             onClickDelete = onClickDelete,
+            onClickToggleHidden = onClickToggleHidden,
             onChangeOrder = onChangeOrder,
         )
     }
@@ -76,10 +79,12 @@ fun CategoryScreen(
 @Composable
 private fun CategoryContent(
     categories: List<Category>,
+    hiddenCategoryIds: Set<Long>,
     lazyListState: LazyListState,
     paddingValues: PaddingValues,
     onClickRename: (Category) -> Unit,
     onClickDelete: (Category) -> Unit,
+    onClickToggleHidden: (Category) -> Unit,
     onChangeOrder: (Category, Int) -> Unit,
 ) {
     val categoriesState = remember { categories.toMutableStateList() }
@@ -112,8 +117,10 @@ private fun CategoryContent(
                 CategoryListItem(
                     modifier = Modifier.animateItem(),
                     category = category,
+                    isHidden = hiddenCategoryIds.contains(category.id),
                     onRename = { onClickRename(category) },
                     onDelete = { onClickDelete(category) },
+                    onToggleHidden = { onClickToggleHidden(category) },
                 )
             }
         }

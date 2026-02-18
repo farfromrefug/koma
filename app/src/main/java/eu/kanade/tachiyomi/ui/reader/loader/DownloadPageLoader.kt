@@ -53,7 +53,10 @@ internal class DownloadPageLoader(
         // using the chapter's metadata to construct template-based names
         if (chapterPath == null) {
             if (downloadPreferences.downloadToLocalSource().get() && source.id != LocalSource.ID) {
-                chapterPath = findChapterInLocalSource(dbChapter)
+                val domainChapter = dbChapter.toDomainChapter()
+                if (domainChapter != null) {
+                    chapterPath = findChapterInLocalSource(domainChapter)
+                }
             }
         }
         

@@ -11,11 +11,15 @@ import mihon.core.archive.epubReader
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.model.StubSource
+import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.io.Format
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 /**
  * Loader used to retrieve the [PageLoader] for a given chapter.
@@ -85,11 +89,27 @@ class ChapterLoader(
             manga.source,
             skipCache = true,
         )
+        
+        // Check if chapter is downloaded to local source instead of remote source directory
+        val downloadPreferences = Injekt.get<DownloadPreferences>()
+        val sourceManager = Injekt.get<SourceManager>()
+        val shouldUseLocalSource = isDownloaded && 
+            downloadPreferences.downloadToLocalSource().get() && 
+            source !is LocalSource &&
+            downloadManager.hasLocalManga(manga)
+        
+        // Use LocalSource if chapter is in local source directory
+        val effectiveSource = if (shouldUseLocalSource) {
+            sourceManager.get(LocalSource.ID) ?: source
+        } else {
+            source
+        }
+        
         return when {
             isDownloaded -> DownloadPageLoader(
                 chapter,
                 manga,
-                source,
+                effectiveSource,
                 downloadManager,
                 downloadProvider,
             )

@@ -5,9 +5,12 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -17,6 +20,7 @@ import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.RenameCategory
 import tachiyomi.domain.category.interactor.ReorderCategory
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -27,6 +31,7 @@ class CategoryScreenModel(
     private val deleteCategory: DeleteCategory = Injekt.get(),
     private val reorderCategory: ReorderCategory = Injekt.get(),
     private val renameCategory: RenameCategory = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = Injekt.get(),
 ) : StateScreenModel<CategoryScreenState>(CategoryScreenState.Loading) {
 
     private val _events: Channel<CategoryEvent> = Channel()
@@ -34,16 +39,24 @@ class CategoryScreenModel(
 
     init {
         screenModelScope.launch {
-            getCategories.subscribe()
-                .collectLatest { categories ->
-                    mutableState.update {
-                        CategoryScreenState.Success(
-                            categories = categories
-                                .filterNot(Category::isSystemCategory)
-                                .toImmutableList(),
-                        )
-                    }
+            combine(
+                getCategories.subscribe(),
+                libraryPreferences.hiddenCategories().changes(),
+            ) { categories, hiddenCategories ->
+                categories to hiddenCategories
+            }.collectLatest { (categories, hiddenCategories) ->
+                mutableState.update {
+                    CategoryScreenState.Success(
+                        categories = categories
+                            .filterNot(Category::isSystemCategory)
+                            .toImmutableList(),
+                        hiddenCategoryIds = hiddenCategories
+                            .mapNotNull { it.toLongOrNull() }
+                            .toSet()
+                            .toImmutableSet(),
+                    )
                 }
+            }
         }
     }
 
@@ -80,6 +93,21 @@ class CategoryScreenModel(
                 is RenameCategory.Result.InternalError -> _events.send(CategoryEvent.InternalError)
                 else -> {}
             }
+        }
+    }
+    
+    fun toggleHidden(category: Category) {
+        screenModelScope.launch {
+            val hiddenCategories = libraryPreferences.hiddenCategories().get().toMutableSet()
+            val categoryIdStr = category.id.toString()
+            
+            if (hiddenCategories.contains(categoryIdStr)) {
+                hiddenCategories.remove(categoryIdStr)
+            } else {
+                hiddenCategories.add(categoryIdStr)
+            }
+            
+            libraryPreferences.hiddenCategories().set(hiddenCategories)
         }
     }
 
@@ -121,6 +149,7 @@ sealed interface CategoryScreenState {
     @Immutable
     data class Success(
         val categories: ImmutableList<Category>,
+        val hiddenCategoryIds: ImmutableSet<Long> = emptySet<Long>().toImmutableSet(),
         val dialog: CategoryDialog? = null,
     ) : CategoryScreenState {
 

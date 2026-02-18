@@ -129,10 +129,10 @@ fun ChapterCompactGridItem(
                             onClick = { onDownloadClick?.invoke(it) },
                         )
                     }
-                    InfoIndicator(
-                        enabled = true,
-                        onClick = { onInfoClick?.invoke(it) },
-                    )
+//                    InfoIndicator(
+//                        enabled = true,
+//                        onClick = { onInfoClick?.invoke(it) },
+//                    )
                 }
             },
             readProgress = readProgress,
@@ -215,10 +215,10 @@ fun ChapterComfortableGridItem(
                                 onClick = { onDownloadClick?.invoke(it) },
                             )
                         }
-                        InfoIndicator(
-                            enabled = true,
-                            onClick = { onInfoClick?.invoke(it) },
-                        )
+//                        InfoIndicator(
+//                            enabled = true,
+//                            onClick = { onInfoClick?.invoke(it) },
+//                        )
                     }
                 },
                 readProgress = readProgress

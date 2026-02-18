@@ -61,6 +61,7 @@ import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.core.metadata.comicinfo.COMIC_INFO_FILE
 import tachiyomi.core.metadata.comicinfo.ComicInfo
+import tachiyomi.domain.category.interactor.CreateCategoryWithName
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.chapter.model.Chapter
@@ -69,6 +70,7 @@ import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
@@ -486,6 +488,7 @@ class Downloader(
     /**
      * Handles importing downloaded chapters to local source if configured.
      * This will create or update the local manga entry and add it to the library.
+     * When merge preference is enabled, assigns to "local_duplicates" hidden category.
      *
      * @param download the chapter that was downloaded.
      */
@@ -496,30 +499,24 @@ class Downloader(
             val provider: DownloadProvider = Injekt.get()
             val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get()
             val networkToLocalManga: NetworkToLocalManga = Injekt.get()
+            val libraryPreferences: LibraryPreferences = Injekt.get()
+            val updateManga: UpdateManga = Injekt.get()
+            val setMangaCategories: SetMangaCategories = Injekt.get()
+            val getCategories: GetCategories = Injekt.get()
+            val createCategoryWithName: CreateCategoryWithName = Injekt.get()
+            val addTracks: AddTracks = Injekt.get()
 
             val mangaDirName = provider.getLocalSourceMangaDirName(download.manga.title)
             val localUrl = mangaDirName
             var localManga = getMangaByUrlAndSourceId.await(localUrl, LocalSource.ID)
 
-            if (localManga == null) {
-                val manga = Manga.create().copy(
-                    url = localUrl,
-                    title = mangaDirName,
-                    source = LocalSource.ID,
-                    favorite = true,
-                )
-                localManga = networkToLocalManga(manga)
-            }
-
-            localManga?.let {
-                if (!it.favorite) {
-                    val mangaId = localManga.id
-                    val libraryPreferences: LibraryPreferences = Injekt.get()
-                    val updateManga: UpdateManga = Injekt.get()
-                    val setMangaCategories: SetMangaCategories = Injekt.get()
-                    val getCategories: GetCategories = Injekt.get()
-                    val addTracks: AddTracks = Injekt.get()
-
+            // Check if we should merge remote and local manga
+            val shouldMerge = libraryPreferences.mergeRemoteAndLocalManga().get()
+            var remoteMangaInLibrary = download.manga.favorite
+            if (!remoteMangaInLibrary) {
+                val result = updateManga.awaitUpdateFavorite(download.manga.id, true)
+                if (result)  {
+                    // Use default category logic for non-merge case
                     val categories = getCategories.subscribe()
                         .firstOrNull()
                         ?.filterNot { it.isSystemCategory }
@@ -530,24 +527,93 @@ class Downloader(
                     when {
                         // Default category set
                         defaultCategory != null -> {
-                            val result = updateManga.awaitUpdateFavorite(mangaId, true)
-                            if (!result) return@launch
-                            setMangaCategories.await(mangaId, listOf(defaultCategoryId))
+                            setMangaCategories.await(download.manga.id, listOf(defaultCategoryId))
                         }
-
                         // Automatic 'Default' or no categories
                         defaultCategoryId == 0L || categories.isEmpty() -> {
-                            val result = updateManga.awaitUpdateFavorite(mangaId, true)
-                            if (!result) return@launch
-                            setMangaCategories.await(mangaId, listOf())
+                            setMangaCategories.await(download.manga.id, listOf())
+                        }
+                    }
+                    remoteMangaInLibrary = true
+                }
+            }
+
+            if (localManga == null) {
+                // Always create local manga as favorite so chapters can be queried
+                val manga = Manga.create().copy(
+                    url = localUrl,
+                    title = mangaDirName,
+                    source = LocalSource.ID,
+                    favorite = true,
+                )
+                localManga = networkToLocalManga(manga)
+            }
+
+            localManga?.let { manga ->
+                if (!manga.favorite) {
+                    // Add to library
+                    val result = updateManga.awaitUpdateFavorite(manga.id, true)
+                    if (!result) return@launch
+                }
+
+                // Determine which category to use
+                if (shouldMerge && remoteMangaInLibrary) {
+                    // Get or create the local_duplicates category
+                    val categories = getCategories.subscribe().firstOrNull().orEmpty()
+                    var localDuplicatesCategory = categories.find {
+                        it.name == LibraryPreferences.LOCAL_DUPLICATES_CATEGORY_NAME
+                    }
+
+                    if (localDuplicatesCategory == null) {
+                        // Create the category
+                        val createResult = createCategoryWithName.await(LibraryPreferences.LOCAL_DUPLICATES_CATEGORY_NAME)
+                        if (createResult is CreateCategoryWithName.Result.Success) {
+                            // Get the newly created category
+                            val updatedCategories = getCategories.subscribe().firstOrNull().orEmpty()
+                            localDuplicatesCategory = updatedCategories.find {
+                                it.name == LibraryPreferences.LOCAL_DUPLICATES_CATEGORY_NAME
+                            }
                         }
                     }
 
-                    // Sync with tracking services if applicable
-                    val sourceManager: SourceManager = Injekt.get()
-                    addTracks.bindEnhancedTrackers(localManga, sourceManager.getOrStub(localManga.source))
+                    // Auto-hide the local_duplicates category
+                    localDuplicatesCategory?.let { category ->
+                        val hiddenCategories = libraryPreferences.hiddenCategories().get().toMutableSet()
+                        if (!hiddenCategories.contains(category.id.toString())) {
+                            hiddenCategories.add(category.id.toString())
+                            libraryPreferences.hiddenCategories().set(hiddenCategories)
+                        }
+
+                        // Assign manga to this category
+                        setMangaCategories.await(manga.id, listOf(category.id))
+                    }
+                } else {
+                    // Use default category logic for non-merge case
+                    val categories = getCategories.subscribe()
+                        .firstOrNull()
+                        ?.filterNot { it.isSystemCategory }
+                        .orEmpty()
+                    val defaultCategoryId = libraryPreferences.defaultCategory().get().toLong()
+                    val defaultCategory = categories.find { it.id == defaultCategoryId }
+
+                    when {
+                        // Default category set
+                        defaultCategory != null -> {
+                            setMangaCategories.await(manga.id, listOf(defaultCategoryId))
+                        }
+                        // Automatic 'Default' or no categories
+                        defaultCategoryId == 0L || categories.isEmpty() -> {
+                            setMangaCategories.await(manga.id, listOf())
+                        }
+                    }
                 }
-                LocalMangaImportJob.startNow(context, localManga.id)
+
+                // Sync with tracking services if applicable
+                val sourceManager: SourceManager = Injekt.get()
+                addTracks.bindEnhancedTrackers(manga, sourceManager.getOrStub(manga.source))
+
+                // Always trigger import job to process chapters
+                LocalMangaImportJob.startNow(context, manga.id)
             }
         }
     }

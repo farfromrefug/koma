@@ -144,7 +144,11 @@ class MangaScreen(
             chapterGridColumns = chapterGridColumns,
             pagedModeEnabled = pagedModeEnabled,
             navigateUp = navigator::pop,
-            onChapterClicked = { openChapter(context, it) },
+            onChapterClicked = { chapter ->
+                scope.launch {
+                    openChapter(context, chapter, successState.manga)
+                }
+            },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
             onAddToLibraryClicked = {
                 screenModel.toggleFavorite()
@@ -174,7 +178,14 @@ class MangaScreen(
             onTagSearch = { scope.launch { performGenreSearch(navigator, it, screenModel.source!!) } },
             onFilterButtonClicked = screenModel::showSettingsDialog,
             onRefresh = screenModel::fetchAllFromSource,
-            onContinueReading = { continueReading(context, screenModel.getNextUnreadChapter()) },
+            onContinueReading = {
+                scope.launch {
+                    val unreadChapter = screenModel.getNextUnreadChapter()
+                    if (unreadChapter != null) {
+                        openChapter(context, unreadChapter, successState.manga)
+                    }
+                }
+            },
             onSearch = { query, global -> scope.launch { performSearch(navigator, query, global) } },
             onCoverClicked = screenModel::showCoverDialog,
             onShareClicked = { shareManga(context, screenModel.manga, screenModel.source) }.takeIf { isHttpSource },
@@ -340,12 +351,50 @@ class MangaScreen(
         }
     }
 
-    private fun continueReading(context: Context, unreadChapter: Chapter?) {
-        if (unreadChapter != null) openChapter(context, unreadChapter)
+    private suspend fun findLocalChapter(remoteChapter: Chapter, remoteManga: Manga): Chapter? {
+        val downloadPreferences = Injekt.get<tachiyomi.domain.download.service.DownloadPreferences>()
+        val downloadProvider = Injekt.get<eu.kanade.tachiyomi.data.download.DownloadProvider>()
+        val getMangaByUrlAndSourceId = Injekt.get<tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId>()
+        val getChaptersByMangaId = Injekt.get<tachiyomi.domain.chapter.interactor.GetChaptersByMangaId>()
+        
+        // Only check if downloadToLocalSource is enabled and manga has local downloads
+        if (!downloadPreferences.downloadToLocalSource().get()) return null
+        if (!downloadProvider.hasLocalSourceDownloads(remoteManga.title)) return null
+        
+        // Get the local manga
+        val localMangaDirName = downloadProvider.getLocalSourceMangaDirName(remoteManga.title)
+        val localManga = getMangaByUrlAndSourceId.await(localMangaDirName, tachiyomi.source.local.LocalSource.ID)
+            ?: return null
+        
+        // Get chapters from local manga
+        val localChapters = getChaptersByMangaId.await(localManga.id)
+        
+        // Find matching chapter by comparing chapter number and name
+        // We prioritize chapter number match as it's more reliable
+        return localChapters.firstOrNull { localChapter ->
+            // Match by chapter number if available (most reliable)
+            if (remoteChapter.chapterNumber >= 0 && localChapter.chapterNumber >= 0) {
+                localChapter.chapterNumber == remoteChapter.chapterNumber &&
+                    localChapter.scanlator == remoteChapter.scanlator
+            } else {
+                // Fallback to name matching
+                localChapter.name == remoteChapter.name &&
+                    localChapter.scanlator == remoteChapter.scanlator
+            }
+        }
     }
 
-    private fun openChapter(context: Context, chapter: Chapter) {
-        context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id))
+    private suspend fun openChapter(context: Context, chapter: Chapter, manga: Manga) {
+        // Check if we should use a local chapter instead
+        val chapterToOpen = if (manga.source != tachiyomi.source.local.LocalSource.ID) {
+            withIOContext { findLocalChapter(chapter, manga) } ?: chapter
+        } else {
+            chapter
+        }
+        
+        context.startActivity(
+            ReaderActivity.newIntent(context, chapterToOpen.mangaId, chapterToOpen.id)
+        )
     }
 
     private fun getMangaUrl(manga_: Manga?, source_: Source?): String? {

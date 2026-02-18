@@ -96,6 +96,8 @@
     <string name="action_add_category">Add category</string>
     <string name="action_edit_categories">Edit categories</string>
     <string name="action_rename_category">Rename category</string>
+    <string name="action_hide_category">Hide category</string>
+    <string name="action_show_category">Show category</string>
     <string name="action_move_category">Set categories</string>
     <string name="action_create_group">Create group</string>
     <string name="action_edit_group">Edit group</string>
@@ -582,6 +584,8 @@
     <string name="pref_download_concurrent_pages_summary">Pages downloaded simultaneously per source</string>
     <string name="pref_download_to_local_source">Download to local source folder</string>
     <string name="pref_download_to_local_source_summary">Save downloaded chapters directly to local source folder instead of downloads folder</string>
+    <string name="pref_merge_remote_and_local_manga">Merge remote and local manga</string>
+    <string name="pref_merge_remote_and_local_manga_summary">When downloading to local source, keep only the remote manga in library and access downloaded chapters from it</string>
 
     <!-- Local source settings -->
     <string name="pref_auto_add_local_manga_to_library">Auto-add local manga to library</string>

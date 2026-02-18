@@ -144,7 +144,11 @@ class MangaScreen(
             chapterGridColumns = chapterGridColumns,
             pagedModeEnabled = pagedModeEnabled,
             navigateUp = navigator::pop,
-            onChapterClicked = { openChapter(context, it) },
+            onChapterClicked = { chapter ->
+                scope.launch {
+                    openChapter(context, chapter, successState.manga)
+                }
+            },
             onDownloadChapter = screenModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
             onAddToLibraryClicked = {
                 screenModel.toggleFavorite()

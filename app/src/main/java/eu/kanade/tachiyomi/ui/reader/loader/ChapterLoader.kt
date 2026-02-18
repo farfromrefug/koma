@@ -89,22 +89,21 @@ class ChapterLoader(
             manga.source,
             skipCache = true,
         )
-        
-        // Check if chapter is downloaded to local source instead of remote source directory
+
+        // Check if chapter is existing to local source instead of remote source directory
         val downloadPreferences = Injekt.get<DownloadPreferences>()
         val sourceManager = Injekt.get<SourceManager>()
-        val shouldUseLocalSource = isDownloaded && 
-            downloadPreferences.downloadToLocalSource().get() && 
+        val shouldUseLocalSource = downloadPreferences.downloadToLocalSource().get() &&
             source !is LocalSource &&
             downloadManager.hasLocalManga(manga)
-        
+
         // Use LocalSource if chapter is in local source directory
         val effectiveSource = if (shouldUseLocalSource) {
             sourceManager.get(LocalSource.ID) ?: source
         } else {
             source
         }
-        
+
         return when {
             isDownloaded -> DownloadPageLoader(
                 chapter,
@@ -113,15 +112,15 @@ class ChapterLoader(
                 downloadManager,
                 downloadProvider,
             )
-            source is LocalSource -> source.getFormat(chapter.chapter).let { format ->
+            effectiveSource is LocalSource -> effectiveSource.getFormat(chapter.chapter).let { format ->
                 when (format) {
                     is Format.Directory -> DirectoryPageLoader(format.file)
                     is Format.Archive -> ArchivePageLoader(format.file.archiveReader(context))
                     is Format.Epub -> EpubPageLoader(format.file.epubReader(context))
                 }
             }
-            source is HttpSource -> HttpPageLoader(chapter, source)
-            source is StubSource -> error(context.stringResource(MR.strings.source_not_installed, source.toString()))
+            effectiveSource is HttpSource -> HttpPageLoader(chapter, effectiveSource)
+            effectiveSource is StubSource -> error(context.stringResource(MR.strings.source_not_installed, effectiveSource.toString()))
             else -> error(context.stringResource(MR.strings.loader_not_implemented_error))
         }
     }

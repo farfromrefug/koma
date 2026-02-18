@@ -2,7 +2,7 @@ package eu.kanade.domain.chapter.model
 
 import eu.kanade.tachiyomi.data.database.models.ChapterImpl
 import eu.kanade.tachiyomi.data.database.models.toJsonString
-import eu.kanade.tachiyomi.data.database.models.getBannersFromJson
+import eu.kanade.tachiyomi.data.database.models.parseBannersFromJson
 import eu.kanade.tachiyomi.source.model.SChapter
 import tachiyomi.domain.chapter.model.Chapter
 import eu.kanade.tachiyomi.data.database.models.Chapter as DbChapter
@@ -44,8 +44,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         moods
     }
     val finalTotalPages = sChapter.total_pages ?: totalPages
-    
-    val bannersFromSChapter = parseBannersFromJson(sChapter.banners) ?: banners
+    val finalBanners = parseBannersFromJson(sChapter.banners) ?: banners
     
     return this.copy(
         name = sChapter.name,
@@ -60,7 +59,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         language = language,
         description = description,
         totalPages = finalTotalPages,
-        banners = bannersFromSChapter,
+        banners = finalBanners,
     )
 }
 

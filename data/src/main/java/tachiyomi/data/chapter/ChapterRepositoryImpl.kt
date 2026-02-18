@@ -11,6 +11,9 @@ import tachiyomi.data.StringListColumnAdapter.encode
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
+import eu.kanade.tachiyomi.data.database.models.toJsonString
+import eu.kanade.tachiyomi.data.database.models.getBannersFromJson
+import eu.kanade.tachiyomi.data.database.models.Chapter as DbChapter
 
 class ChapterRepositoryImpl(
     private val handler: DatabaseHandler,
@@ -40,6 +43,7 @@ class ChapterRepositoryImpl(
                         chapter.moods,
                         chapter.language,
                         chapter.description,
+                        chapter.banners.toJsonString(),
                     )
                     val lastInsertId = chaptersQueries.selectLastInsertedRowId().executeAsOne()
                     chapter.copy(id = lastInsertId)
@@ -84,6 +88,7 @@ class ChapterRepositoryImpl(
                     moods = chapterUpdate.moods?.let(StringListColumnAdapter::encode),
                     language = chapterUpdate.language,
                     description = chapterUpdate.description,
+                    banners = chapterUpdate.banners.toJsonString(),
                 )
             }
         }
@@ -168,27 +173,61 @@ class ChapterRepositoryImpl(
         moods: List<String>?,
         language: String?,
         description: String?,
-    ): Chapter = Chapter(
-        id = id,
-        mangaId = mangaId,
-        read = read,
-        bookmark = bookmark,
-        lastPageRead = lastPageRead,
-        dateFetch = dateFetch,
-        sourceOrder = sourceOrder,
-        url = url,
-        name = name,
-        dateUpload = dateUpload,
-        chapterNumber = chapterNumber,
-        scanlator = scanlator,
-        lastModifiedAt = lastModifiedAt,
-        version = version,
-        coverUrl = coverUrl,
-        totalPages = totalPages,
-        genre = genre,
-        tags = tags,
-        moods = moods,
-        language = language,
-        description = description,
-    )
+        bannersJson: String?,
+    ): Chapter {
+        // Create a temporary DbChapter to parse banners from JSON
+        val banners = if (bannersJson != null) {
+            object : DbChapter {
+                override var banners: String? = bannersJson
+                override var id: Long? = null
+                override var manga_id: Long? = null
+                override var read: Boolean = false
+                override var bookmark: Boolean = false
+                override var last_page_read: Int = 0
+                override var date_fetch: Long = 0
+                override var source_order: Int = 0
+                override var last_modified: Long = 0
+                override var version: Long = 0
+                override var url: String = ""
+                override var name: String = ""
+                override var date_upload: Long = 0
+                override var chapter_number: Float = 0f
+                override var scanlator: String? = null
+                override var description: String? = null
+                override var genre: String? = null
+                override var tags: String? = null
+                override var moods: String? = null
+                override var language: String? = null
+                override var thumbnail_url: String? = null
+                override var total_pages: Long? = null
+            }.getBannersFromJson()
+        } else {
+            null
+        }
+        
+        return Chapter(
+            id = id,
+            mangaId = mangaId,
+            read = read,
+            bookmark = bookmark,
+            lastPageRead = lastPageRead,
+            dateFetch = dateFetch,
+            sourceOrder = sourceOrder,
+            url = url,
+            name = name,
+            dateUpload = dateUpload,
+            chapterNumber = chapterNumber,
+            scanlator = scanlator,
+            lastModifiedAt = lastModifiedAt,
+            version = version,
+            coverUrl = coverUrl,
+            totalPages = totalPages,
+            genre = genre,
+            tags = tags,
+            moods = moods,
+            language = language,
+            description = description,
+            banners = banners,
+        )
+    }
 }

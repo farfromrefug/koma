@@ -1,6 +1,8 @@
 package eu.kanade.domain.chapter.model
 
 import eu.kanade.tachiyomi.data.database.models.ChapterImpl
+import eu.kanade.tachiyomi.data.database.models.toJsonString
+import eu.kanade.tachiyomi.data.database.models.getBannersFromJson
 import eu.kanade.tachiyomi.source.model.SChapter
 import tachiyomi.domain.chapter.model.Chapter
 import eu.kanade.tachiyomi.data.database.models.Chapter as DbChapter
@@ -20,6 +22,7 @@ fun Chapter.toSChapter(): SChapter {
         it.moods = moods.orEmpty().joinToString()
         it.language = language
         it.total_pages = totalPages
+        it.banners = banners.toJsonString()
     }
 }
 
@@ -41,6 +44,37 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         moods
     }
     val finalTotalPages = sChapter.total_pages ?: totalPages
+    
+    // Create a temporary DbChapter to parse banners from JSON
+    val bannersFromSChapter = if (sChapter.banners != null) {
+        object : DbChapter {
+            override var banners: String? = sChapter.banners
+            override var id: Long? = null
+            override var manga_id: Long? = null
+            override var read: Boolean = false
+            override var bookmark: Boolean = false
+            override var last_page_read: Int = 0
+            override var date_fetch: Long = 0
+            override var source_order: Int = 0
+            override var last_modified: Long = 0
+            override var version: Long = 0
+            override var url: String = ""
+            override var name: String = ""
+            override var date_upload: Long = 0
+            override var chapter_number: Float = 0f
+            override var scanlator: String? = null
+            override var description: String? = null
+            override var genre: String? = null
+            override var tags: String? = null
+            override var moods: String? = null
+            override var language: String? = null
+            override var thumbnail_url: String? = null
+            override var total_pages: Long? = null
+        }.getBannersFromJson()
+    } else {
+        banners
+    }
+    
     return this.copy(
         name = sChapter.name,
         url = sChapter.url,
@@ -54,6 +88,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         language = language,
         description = description,
         totalPages = finalTotalPages,
+        banners = bannersFromSChapter,
     )
 }
 
@@ -74,4 +109,5 @@ fun Chapter.toDbChapter(): DbChapter = ChapterImpl().also {
     it.date_upload = dateUpload
     it.chapter_number = chapterNumber.toFloat()
     it.source_order = sourceOrder.toInt()
+    it.banners = banners.toJsonString()
 }

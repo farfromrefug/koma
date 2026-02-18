@@ -21,6 +21,7 @@ data class ChapterUpdate(
     val tags: List<String>? = null,
     val moods: List<String>? = null,
     val language: String? = null,
+    val banners: List<ChapterTag>? = null,
 )
 
 fun Chapter.toChapterUpdate(): ChapterUpdate {

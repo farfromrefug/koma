@@ -27,4 +27,6 @@ class SChapterImpl : SChapter {
     override var language: String? = null
 
     override var total_pages: Long? = null
+
+    override var banners: String? = null
 }

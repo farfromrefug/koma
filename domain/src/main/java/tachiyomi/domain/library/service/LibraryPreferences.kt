@@ -219,6 +219,12 @@ class LibraryPreferences(
     fun mergeRemoteAndLocalManga() = preferenceStore.getBoolean("merge_remote_and_local_manga", true)
     
     /**
+     * Set of category IDs that should be hidden from the library display.
+     * Used to hide the "local_duplicates" category and other categories users want to hide.
+     */
+    fun hiddenCategories() = preferenceStore.getStringSet("hidden_categories", emptySet())
+    
+    /**
      * Number of concurrent workers for local source chapter processing.
      * Lower values use less memory but process slower. Default is 3.
      */
@@ -240,6 +246,8 @@ class LibraryPreferences(
     }
 
     companion object {
+        const val LOCAL_DUPLICATES_CATEGORY_NAME = "local_duplicates"
+        
         const val DEVICE_ONLY_ON_WIFI = "wifi"
         const val DEVICE_NETWORK_NOT_METERED = "network_not_metered"
         const val DEVICE_CHARGING = "ac"

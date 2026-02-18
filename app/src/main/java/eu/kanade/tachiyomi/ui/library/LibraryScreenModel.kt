@@ -311,8 +311,15 @@ class LibraryScreenModel(
                 groupCache.getOrPut(categoryId) { mutableListOf() }.add(item.id)
             }
         }
-        return categories.filter { showSystemCategory || !it.isSystemCategory }
-            .associateWith { groupCache[it.id]?.toList().orEmpty() }
+        
+        // Get hidden categories from preferences
+        val hiddenCategoryIds = libraryPreferences.hiddenCategories().get()
+            .mapNotNull { it.toLongOrNull() }
+            .toSet()
+        
+        return categories.filter { category ->
+            (showSystemCategory || !category.isSystemCategory) && !hiddenCategoryIds.contains(category.id)
+        }.associateWith { groupCache[it.id]?.toList().orEmpty() }
     }
 
     private fun Map<Category, List</* LibraryItem */ Long>>.applySort(

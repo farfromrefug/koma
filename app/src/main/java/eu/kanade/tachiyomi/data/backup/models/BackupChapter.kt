@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.backup.models
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 
 @Serializable
 data class BackupChapter(
@@ -28,6 +29,7 @@ data class BackupChapter(
     @ProtoNumber(16) var tags: List<String> = emptyList(),
     @ProtoNumber(17) var language: String? = null,
     @ProtoNumber(18) var description: String? = null,
+    @ProtoNumber(19) var bannersJson: String? = null,
 ) {
     fun toChapterImpl(): Chapter {
         return Chapter.create().copy(
@@ -49,6 +51,7 @@ data class BackupChapter(
             moods = this@BackupChapter.moods,
             language = this@BackupChapter.language,
             description = this@BackupChapter.description,
+            banners = parseBannersFromJson(this@BackupChapter.bannersJson),
         )
     }
 }
@@ -76,6 +79,7 @@ val backupChapterMapper = {
         tags: List<String>?,
         language: String?,
         description: String?,
+        bannersJson: String?,
     ->
     BackupChapter(
         url = url,
@@ -96,5 +100,6 @@ val backupChapterMapper = {
         tags = tags ?: emptyList(),
         language = language,
         description = description,
+        bannersJson = bannersJson,
     )
 }

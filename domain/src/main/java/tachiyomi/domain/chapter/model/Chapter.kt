@@ -22,6 +22,7 @@ data class Chapter(
     val genre: List<String>?,
     val tags: List<String>?,
     val moods: List<String>?,
+    val banners: List<ChapterTag>? = null,
 ) {
     val isRecognizedNumber: Boolean
         get() = chapterNumber >= 0f
@@ -39,6 +40,7 @@ data class Chapter(
             chapterNumber = other.chapterNumber,
             scanlator = other.scanlator?.ifBlank { null },
             coverUrl = other.coverUrl,
+            banners = other.banners,
         )
     }
 
@@ -65,6 +67,7 @@ data class Chapter(
             tags = null,
             moods = null,
             totalPages = 0,
+            banners = null,
         )
     }
 }

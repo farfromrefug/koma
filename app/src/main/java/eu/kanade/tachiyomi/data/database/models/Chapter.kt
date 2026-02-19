@@ -4,6 +4,8 @@ package eu.kanade.tachiyomi.data.database.models
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import java.io.Serializable
+import tachiyomi.domain.chapter.model.ChapterTag
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 import tachiyomi.domain.chapter.model.Chapter as DomainChapter
 
 interface Chapter : SChapter, Serializable {
@@ -31,6 +33,10 @@ interface Chapter : SChapter, Serializable {
 val Chapter.isRecognizedNumber: Boolean
     get() = chapter_number >= 0f
 
+fun Chapter.getBannersFromJson(): List<ChapterTag>? {
+    return parseBannersFromJson(banners)
+}
+
 fun Chapter.toDomainChapter(): DomainChapter? {
     if (id == null || manga_id == null) return null
     return DomainChapter(
@@ -55,5 +61,6 @@ fun Chapter.toDomainChapter(): DomainChapter? {
         genre = getGenres(),
         tags = getTags(),
         moods = getMoods(),
+        banners = parseBannersFromJson(banners),
     )
 }

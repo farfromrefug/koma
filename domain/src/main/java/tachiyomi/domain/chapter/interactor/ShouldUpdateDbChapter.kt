@@ -15,6 +15,7 @@ class ShouldUpdateDbChapter {
             dbChapter.dateUpload != sourceChapter.dateUpload ||
             dbChapter.chapterNumber != sourceChapter.chapterNumber ||
             dbChapter.sourceOrder != sourceChapter.sourceOrder ||
-            dbChapter.coverUrl != sourceChapter.coverUrl
+            dbChapter.coverUrl != sourceChapter.coverUrl ||
+            dbChapter.banners.toString() != sourceChapter.banners.toString()
     }
 }

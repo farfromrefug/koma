@@ -11,6 +11,8 @@ import tachiyomi.data.StringListColumnAdapter.encode
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
+import tachiyomi.domain.chapter.model.toJsonString
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 
 class ChapterRepositoryImpl(
     private val handler: DatabaseHandler,
@@ -40,6 +42,7 @@ class ChapterRepositoryImpl(
                         chapter.moods,
                         chapter.language,
                         chapter.description,
+                        chapter.banners.toJsonString(),
                     )
                     val lastInsertId = chaptersQueries.selectLastInsertedRowId().executeAsOne()
                     chapter.copy(id = lastInsertId)
@@ -84,6 +87,7 @@ class ChapterRepositoryImpl(
                     moods = chapterUpdate.moods?.let(StringListColumnAdapter::encode),
                     language = chapterUpdate.language,
                     description = chapterUpdate.description,
+                    banners = chapterUpdate.banners.toJsonString(),
                 )
             }
         }
@@ -168,27 +172,31 @@ class ChapterRepositoryImpl(
         moods: List<String>?,
         language: String?,
         description: String?,
-    ): Chapter = Chapter(
-        id = id,
-        mangaId = mangaId,
-        read = read,
-        bookmark = bookmark,
-        lastPageRead = lastPageRead,
-        dateFetch = dateFetch,
-        sourceOrder = sourceOrder,
-        url = url,
-        name = name,
-        dateUpload = dateUpload,
-        chapterNumber = chapterNumber,
-        scanlator = scanlator,
-        lastModifiedAt = lastModifiedAt,
-        version = version,
-        coverUrl = coverUrl,
-        totalPages = totalPages,
-        genre = genre,
-        tags = tags,
-        moods = moods,
-        language = language,
-        description = description,
-    )
+        bannersJson: String?,
+    ): Chapter {
+        return Chapter(
+            id = id,
+            mangaId = mangaId,
+            read = read,
+            bookmark = bookmark,
+            lastPageRead = lastPageRead,
+            dateFetch = dateFetch,
+            sourceOrder = sourceOrder,
+            url = url,
+            name = name,
+            dateUpload = dateUpload,
+            chapterNumber = chapterNumber,
+            scanlator = scanlator,
+            lastModifiedAt = lastModifiedAt,
+            version = version,
+            coverUrl = coverUrl,
+            totalPages = totalPages,
+            genre = genre,
+            tags = tags,
+            moods = moods,
+            language = language,
+            description = description,
+            banners = parseBannersFromJson(bannersJson),
+        )
+    }
 }

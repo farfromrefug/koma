@@ -3,6 +3,8 @@ package eu.kanade.domain.chapter.model
 import eu.kanade.tachiyomi.data.database.models.ChapterImpl
 import eu.kanade.tachiyomi.source.model.SChapter
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.toJsonString
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 import eu.kanade.tachiyomi.data.database.models.Chapter as DbChapter
 
 // TODO: Remove when all deps are migrated
@@ -20,6 +22,7 @@ fun Chapter.toSChapter(): SChapter {
         it.moods = moods.orEmpty().joinToString()
         it.language = language
         it.total_pages = totalPages
+        it.banners = banners.toJsonString()
     }
 }
 
@@ -41,6 +44,8 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         moods
     }
     val finalTotalPages = sChapter.total_pages ?: totalPages
+    val finalBanners = parseBannersFromJson(sChapter.banners) ?: banners
+    
     return this.copy(
         name = sChapter.name,
         url = sChapter.url,
@@ -54,6 +59,7 @@ fun Chapter.copyFromSChapter(sChapter: SChapter): Chapter {
         language = language,
         description = description,
         totalPages = finalTotalPages,
+        banners = finalBanners,
     )
 }
 
@@ -74,4 +80,5 @@ fun Chapter.toDbChapter(): DbChapter = ChapterImpl().also {
     it.date_upload = dateUpload
     it.chapter_number = chapterNumber.toFloat()
     it.source_order = sourceOrder.toInt()
+    it.banners = banners.toJsonString()
 }

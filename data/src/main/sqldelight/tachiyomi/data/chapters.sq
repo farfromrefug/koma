@@ -25,6 +25,7 @@ CREATE TABLE chapters(
     moods TEXT AS List<String>,
     language TEXT,
     description TEXT,
+    banners TEXT,
     UNIQUE(manga_id, url) ON CONFLICT REPLACE,
     FOREIGN KEY(manga_id) REFERENCES mangas (_id)
     ON DELETE CASCADE
@@ -107,8 +108,8 @@ SET is_syncing = 0
 WHERE is_syncing = 1;
 
 insert:
-INSERT INTO chapters(manga_id, url, name, scanlator, read, bookmark, last_page_read, chapter_number, source_order, date_fetch, date_upload, last_modified_at, version, is_syncing, cover_url, total_pages, genre, tags, moods, language, description)
-VALUES (:mangaId, :url, :name, :scanlator, :read, :bookmark, :lastPageRead, :chapterNumber, :sourceOrder, :dateFetch, :dateUpload, 0, :version, 0, :coverUrl, :totalPages, :genre, :tags, :moods, :language, :description);
+INSERT INTO chapters(manga_id, url, name, scanlator, read, bookmark, last_page_read, chapter_number, source_order, date_fetch, date_upload, last_modified_at, version, is_syncing, cover_url, total_pages, genre, tags, moods, language, description, banners)
+VALUES (:mangaId, :url, :name, :scanlator, :read, :bookmark, :lastPageRead, :chapterNumber, :sourceOrder, :dateFetch, :dateUpload, 0, :version, 0, :coverUrl, :totalPages, :genre, :tags, :moods, :language, :description, :banners);
 
 update:
 UPDATE chapters
@@ -131,7 +132,8 @@ SET manga_id = coalesce(:mangaId, manga_id),
     tags = coalesce(:tags, tags),
     moods = coalesce(:moods, moods),
     language = coalesce(:language, language),
-    description = coalesce(:description, description)
+    description = coalesce(:description, description),
+    banners = coalesce(:banners, banners)
 WHERE _id = :chapterId;
 
 selectLastInsertedRowId:

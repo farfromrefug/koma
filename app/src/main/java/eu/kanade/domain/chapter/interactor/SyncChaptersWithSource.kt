@@ -134,6 +134,7 @@ class SyncChaptersWithSource(
                         scanlator = chapter.scanlator,
                         sourceOrder = chapter.sourceOrder,
                         coverUrl = chapter.coverUrl,
+                        banners = chapter.banners,
                     )
 
                     if (chapter.dateUpload != 0L) {

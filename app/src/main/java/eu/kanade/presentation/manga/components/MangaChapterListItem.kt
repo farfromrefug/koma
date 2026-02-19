@@ -64,6 +64,7 @@ fun MangaChapterListItem(
     onDownloadClick: ((ChapterDownloadAction) -> Unit)?,
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
     modifier: Modifier = Modifier,
+    banners: List<tachiyomi.domain.chapter.model.ChapterTag>? = null,
 ) {
     val start = getSwipeAction(
         action = chapterSwipeStartAction,
@@ -133,6 +134,12 @@ fun MangaChapterListItem(
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { textHeight = it.size.height },
                         color = LocalContentColor.current.copy(alpha = if (read) DISABLED_ALPHA else 1f),
+                    )
+                }
+
+                if (!banners.isNullOrEmpty()) {
+                    ChapterTagGroup(
+                        tags = banners,
                     )
                 }
 

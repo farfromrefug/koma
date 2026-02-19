@@ -209,7 +209,8 @@ fun PagedChapterList(
                     },
                     onChapterSwipe = {
                         onChapterSwipe(item, it)
-                    }
+                    },
+                    banners = item.chapter.banners,
                 )
             }
         }
@@ -388,7 +389,8 @@ fun PagedChapterGrid(
                             } else {
                                 null
                             },
-                            onInfoClick = { onShowChapterInfo?.invoke(item.chapter) }
+                            onInfoClick = { onShowChapterInfo?.invoke(item.chapter) },
+                            banners = item.chapter.banners,
                         )
                     }
                     ChapterDisplayMode.ComfortableGrid -> {
@@ -418,7 +420,8 @@ fun PagedChapterGrid(
                             } else {
                                 null
                             },
-                            onInfoClick = { onShowChapterInfo?.invoke(item.chapter) }
+                            onInfoClick = { onShowChapterInfo?.invoke(item.chapter) },
+                            banners = item.chapter.banners,
                         )
                     }
                     else -> {}

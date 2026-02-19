@@ -30,6 +30,8 @@ interface SChapter : Serializable {
 
     var total_pages: Long?
 
+    var banners: String?
+
     fun getGenres(): List<String>? {
         if (genre.isNullOrBlank()) return null
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
@@ -56,7 +58,7 @@ interface SChapter : Serializable {
         language = other.language
         description = other.description
         total_pages = other.total_pages
-
+        banners = other.banners
     }
 
     companion object {

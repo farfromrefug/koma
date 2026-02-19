@@ -67,6 +67,7 @@ fun ChapterCompactGridItem(
     modifier: Modifier = Modifier,
     date: String? = null,
     readProgress: Double = 0.0,
+    banners: List<tachiyomi.domain.chapter.model.ChapterTag>? = null,
 ) {
     ChapterGridItemSelectable(
         isSelected = selected,
@@ -90,6 +91,7 @@ fun ChapterCompactGridItem(
                     bookmark = bookmark,
                     date = null,
                     readProgress = readProgress,
+                    banners = banners,
                 )
             },
             badgesStart = {
@@ -161,6 +163,7 @@ fun ChapterComfortableGridItem(
     onInfoClick: ((InfoAction) -> Unit)?,
     date: String? = null,
     readProgress: Double = 0.0,
+    banners: List<tachiyomi.domain.chapter.model.ChapterTag>? = null,
 ) {
     ChapterGridItemSelectable(
         isSelected = selected,
@@ -221,7 +224,8 @@ fun ChapterComfortableGridItem(
 //                        )
                     }
                 },
-                readProgress = readProgress
+                readProgress = readProgress,
+                banners = banners,
             )
             ChapterGridItemTitle(
                 title = title,
@@ -243,6 +247,7 @@ private fun BoxScope.ChapterCoverTextOverlay(
     bookmark: Boolean,
     date: String?,
     readProgress: Double = 0.0,
+    banners: List<tachiyomi.domain.chapter.model.ChapterTag>? = null,
 ) {
     Box(
         modifier = Modifier
@@ -283,6 +288,12 @@ private fun BoxScope.ChapterCoverTextOverlay(
 //                    tint = MaterialTheme.colorScheme.primary,
 //                )
 //            }
+        }
+        if (!banners.isNullOrEmpty()) {
+            ChapterTagGroup(
+                modifier = Modifier.align(Alignment.End),
+                tags = banners,
+            )
         }
         Text(
             text = title,
@@ -380,6 +391,7 @@ private fun ChapterGridCover(
     badgesEnd: (@Composable () -> Unit)? = null,
     content: @Composable (BoxScope.() -> Unit)? = null,
     readProgress: Double = 0.0,
+    banners: List<tachiyomi.domain.chapter.model.ChapterTag>? = null,
 ) {
     Box(
         modifier = modifier
@@ -407,6 +419,18 @@ private fun ChapterGridCover(
             }
         }
 
+        // Render banners at the bottom for comfortable grid view
+        if (!banners.isNullOrEmpty() && content == null) {
+            Box(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .align(Alignment.BottomEnd),
+            ) {
+                ChapterTagGroup(
+                    tags = banners,
+                )
+            }
+        }
 
         if (readProgress > 0.0) {
             // Linear progress bar

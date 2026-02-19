@@ -11,8 +11,8 @@ import tachiyomi.data.StringListColumnAdapter.encode
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
-import eu.kanade.tachiyomi.data.database.models.toJsonString
-import eu.kanade.tachiyomi.data.database.models.parseBannersFromJson
+import tachiyomi.domain.chapter.model.toJsonString
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 
 class ChapterRepositoryImpl(
     private val handler: DatabaseHandler,

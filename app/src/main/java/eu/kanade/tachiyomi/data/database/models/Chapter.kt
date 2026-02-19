@@ -4,10 +4,8 @@ package eu.kanade.tachiyomi.data.database.models
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import java.io.Serializable
-import kotlinx.serialization.Serializable as KSerializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
 import tachiyomi.domain.chapter.model.ChapterTag
+import tachiyomi.domain.chapter.model.parseBannersFromJson
 import tachiyomi.domain.chapter.model.Chapter as DomainChapter
 
 interface Chapter : SChapter, Serializable {
@@ -35,39 +33,8 @@ interface Chapter : SChapter, Serializable {
 val Chapter.isRecognizedNumber: Boolean
     get() = chapter_number >= 0f
 
-@KSerializable
-private data class SerializedChapterTag(
-    val text: String,
-    val color: Long,
-)
-
-fun parseBannersFromJson(bannersJson: String?): List<ChapterTag>? {
-    if (bannersJson.isNullOrBlank()) return null
-    return try {
-        Json.decodeFromString<List<SerializedChapterTag>>(bannersJson).map {
-            ChapterTag(text = it.text, color = it.color)
-        }
-    } catch (e: Exception) {
-        null
-    }
-}
-
 fun Chapter.getBannersFromJson(): List<ChapterTag>? {
     return parseBannersFromJson(banners)
-}
-
-fun List<ChapterTag>?.toJsonString(): String? {
-    if (this == null || this.isEmpty()) return null
-    return try {
-        Json.encodeToString(
-            kotlinx.serialization.builtins.ListSerializer(
-                kotlinx.serialization.serializer<SerializedChapterTag>()
-            ),
-            this.map { SerializedChapterTag(text = it.text, color = it.color) }
-        )
-    } catch (e: Exception) {
-        null
-    }
 }
 
 fun Chapter.toDomainChapter(): DomainChapter? {

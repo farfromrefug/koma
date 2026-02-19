@@ -11,6 +11,7 @@ import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.chapter.model.toJsonString
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.model.Manga
@@ -218,6 +219,7 @@ class MangaRestorer(
                     chapter.moods,
                     chapter.language,
                     chapter.description,
+                    chapter.banners.toJsonString(),
                 )
             }
         }
@@ -248,6 +250,7 @@ class MangaRestorer(
                     moods = chapter.moods?.joinToString(separator = ", "),
                     description = chapter.description,
                     language = chapter.language,
+                    banners = chapter.banners.toJsonString(),
                 )
             }
         }

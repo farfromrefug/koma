@@ -33,7 +33,7 @@ fun ChapterTagGroup(
     modifier: Modifier = Modifier,
 ) {
     if (tags.isEmpty()) return
-    
+
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -49,19 +49,19 @@ fun ChapterTagGroup(
     }
 }
 
+// Rec. 709 luma coefficients for relative luminance calculation
+const val RED_LUMINANCE_WEIGHT = 0.299
+const val GREEN_LUMINANCE_WEIGHT = 0.587
+const val BLUE_LUMINANCE_WEIGHT = 0.114
 /**
  * Calculates a contrasting text color (black or white) based on the background color
  * to ensure good readability.
  * Uses Rec. 709 luma coefficients for RGB-to-luminance conversion.
  */
 private fun getContrastingTextColor(backgroundColor: Color): Color {
-    // Rec. 709 luma coefficients for relative luminance calculation
-    const val RED_LUMINANCE_WEIGHT = 0.299
-    const val GREEN_LUMINANCE_WEIGHT = 0.587
-    const val BLUE_LUMINANCE_WEIGHT = 0.114
-    
-    val luminance = (RED_LUMINANCE_WEIGHT * backgroundColor.red + 
-                     GREEN_LUMINANCE_WEIGHT * backgroundColor.green + 
+
+    val luminance = (RED_LUMINANCE_WEIGHT * backgroundColor.red +
+                     GREEN_LUMINANCE_WEIGHT * backgroundColor.green +
                      BLUE_LUMINANCE_WEIGHT * backgroundColor.blue)
     return if (luminance > 0.5) Color.Black else Color.White
 }

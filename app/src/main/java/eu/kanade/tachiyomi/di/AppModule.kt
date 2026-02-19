@@ -67,25 +67,12 @@ class AppModule(val app: Application) : InjektModule {
                         setPragma(db, "foreign_keys = ON")
                         setPragma(db, "journal_mode = WAL")
                         setPragma(db, "synchronous = NORMAL")
-                        migrateSchema(db)
                         recreateViews(db)
                     }
                     private fun setPragma(db: SupportSQLiteDatabase, pragma: String) {
                         val cursor = db.query("PRAGMA $pragma")
                         cursor.moveToFirst()
                         cursor.close()
-                    }
-                    private fun migrateSchema(db: SupportSQLiteDatabase) {
-                        // Handle schema migrations for existing databases
-                        // This is necessary because SQLDelight doesn't automatically
-                        // alter tables when columns are added to .sq files
-                        
-                        // Add banners column to chapters table if it doesn't exist
-                        try {
-                            db.execSQL("ALTER TABLE chapters ADD COLUMN banners TEXT")
-                        } catch (e: Exception) {
-                            // Column already exists, ignore
-                        }
                     }
                     private fun recreateViews(db: SupportSQLiteDatabase) {
                         // Recreate views to ensure they match the current schema.

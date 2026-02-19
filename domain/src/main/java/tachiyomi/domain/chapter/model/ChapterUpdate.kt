@@ -42,5 +42,10 @@ fun Chapter.toChapterUpdate(): ChapterUpdate {
         version,
         coverUrl,
         totalPages,
+        genre,
+        tags,
+        moods,
+        language,
+        banners
     )
 }

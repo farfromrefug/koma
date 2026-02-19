@@ -291,6 +291,7 @@ private fun BoxScope.ChapterCoverTextOverlay(
         }
         if (!banners.isNullOrEmpty()) {
             ChapterTagGroup(
+                modifier = Modifier.align(Alignment.End),
                 tags = banners,
             )
         }
@@ -423,7 +424,7 @@ private fun ChapterGridCover(
             Box(
                 modifier = Modifier
                     .padding(4.dp)
-                    .align(Alignment.BottomStart),
+                    .align(Alignment.BottomEnd),
             ) {
                 ChapterTagGroup(
                     tags = banners,

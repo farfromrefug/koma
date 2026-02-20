@@ -130,6 +130,8 @@ data class BrowseSourceHomeScreen(
                 isLoading = state.isLoading,
                 sourceId = sourceId,
                 loadedSections = state.loadedSections,
+                tabs = state.tabs,
+                selectedTabId = state.selectedTabId,
                 getManga = @Composable { manga ->
                     produceState(initialValue = manga) {
                         try {
@@ -168,6 +170,9 @@ data class BrowseSourceHomeScreen(
                 },
                 onLoadSection = { sectionId ->
                     screenModel.loadSectionManga(sectionId)
+                },
+                onTabSelected = { tabId ->
+                    screenModel.selectTab(tabId)
                 },
             )
 

@@ -1,6 +1,17 @@
 package eu.kanade.tachiyomi.source.model
 
 /**
+ * Represents a tab on the home page.
+ *
+ * @param id The unique identifier for this tab, passed to getHomePage() when selected.
+ * @param text The display text for this tab.
+ */
+data class HomeTab(
+    val id: String,
+    val text: String,
+)
+
+/**
  * Represents a section on the home page with a title and a list of manga.
  *
  * @param title The title of the section (e.g., "Popular", "Latest Updates", "Recommended").

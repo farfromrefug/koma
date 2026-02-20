@@ -33,6 +33,11 @@ class SourcePreferences(
         -1,
     )
 
+    fun lastHomeTab(sourceId: Long) = preferenceStore.getString(
+        Preference.appStateKey("home_tab_$sourceId"),
+        "",
+    )
+
     fun showNsfwSource() = preferenceStore.getBoolean("show_nsfw_source", false)
 
     fun migrationSortingMode() = preferenceStore.getEnum("pref_migration_sorting", SetMigrateSorting.Mode.ALPHABETICAL)

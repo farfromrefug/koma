@@ -12,6 +12,14 @@ The extension home screen provides a new way for sources to display content when
 
 #### New Models (source-api)
 
+**`HomeTab`**: Represents a tab on the home page
+```kotlin
+data class HomeTab(
+    val id: String,    // Unique identifier, passed to getHomePage()
+    val text: String,  // Display text for the tab
+)
+```
+
 **`HomePage`**: Container for home page sections
 ```kotlin
 data class HomePage(
@@ -31,7 +39,7 @@ data class HomeSection(
 
 #### CatalogueSource Interface Extensions
 
-Two new methods have been added to the `CatalogueSource` interface:
+Three new methods have been added to the `CatalogueSource` interface:
 
 ```kotlin
 /**
@@ -41,10 +49,19 @@ Two new methods have been added to the `CatalogueSource` interface:
 fun shouldShowNewExtensionHome(): Boolean = false
 
 /**
+ * Get the tabs to display on the home screen.
+ * If this returns a non-empty list, a tab row is shown and getHomePage() is called
+ * with the selected tab's id. If empty (default), no tabs are shown and
+ * getHomePage() is called with null.
+ */
+fun getHomeTabs(): List<HomeTab> = emptyList()
+
+/**
  * Get the home page with sections of manga.
  * Only called if shouldShowNewExtensionHome() returns true.
+ * @param tabId The id of the currently selected tab, or null if no tabs are defined.
  */
-suspend fun getHomePage(): HomePage
+suspend fun getHomePage(tabId: String? = null): HomePage
 ```
 
 ### UI Components
@@ -69,11 +86,48 @@ To implement the home screen in your extension:
 override fun shouldShowNewExtensionHome(): Boolean = true
 ```
 
-2. Implement `getHomePage()` to return your home page data:
+2. Optionally override `getHomeTabs()` to add tabs:
 
 ```kotlin
-override suspend fun getHomePage(): HomePage {
-    // Fetch data from your source
+override fun getHomeTabs(): List<HomeTab> = listOf(
+    HomeTab(id = "for_you", text = "For You"),
+    HomeTab(id = "trending", text = "Trending"),
+    HomeTab(id = "new", text = "New Releases"),
+)
+```
+
+3. Implement `getHomePage()` to return your home page data, using `tabId` when tabs are defined:
+
+```kotlin
+override suspend fun getHomePage(tabId: String?): HomePage {
+    return when (tabId) {
+        "trending" -> {
+            // Fetch trending content
+            HomePage(sections = listOf(
+                HomeSection(title = "Trending Now", manga = fetchTrending(), hasMore = true, sectionId = "trending_now"),
+            ))
+        }
+        "new" -> {
+            // Fetch new releases
+            HomePage(sections = listOf(
+                HomeSection(title = "New Releases", manga = fetchNew(), hasMore = true, sectionId = "new_releases"),
+            ))
+        }
+        else -> {
+            // Default / "for_you" tab
+            HomePage(sections = listOf(
+                HomeSection(title = "Recommended For You", manga = fetchRecommended(), hasMore = false, sectionId = "recommended"),
+            ))
+        }
+    }
+}
+```
+
+**Without tabs** (backward compatible):
+
+```kotlin
+override suspend fun getHomePage(tabId: String?): HomePage {
+    // tabId will always be null when no tabs are defined
     val popularManga = fetchPopularManga()
     val latestManga = fetchLatestManga()
     val recommendedManga = fetchRecommendedManga()
@@ -115,6 +169,7 @@ override suspend fun getHomePage(): HomePage {
 
 When users browse your source with the home screen enabled:
 - They see all sections at once with horizontal scrolling for each section
+- If tabs are defined, a tab row appears at the top; the last selected tab is remembered across app restarts
 - They can click on any manga to view its details
 - They can long-press manga to add to library
 - They can tap "See More" on sections with `hasMore = true`

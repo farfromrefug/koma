@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.calculateTopPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -65,7 +64,6 @@ fun BrowseSourceHomeContent(
             PrimaryScrollableTabRow(
                 modifier = Modifier.zIndex(1f),
                 selectedTabIndex = selectedIndex,
-                modifier = Modifier.zIndex(1f),
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(

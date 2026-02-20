@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateTopPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -50,16 +51,21 @@ fun BrowseSourceHomeContent(
     onTabSelected: (String) -> Unit = {},
 ) {
     val layoutDirection = LocalLayoutDirection.current
-    Column(modifier = Modifier.fillMaxSize().padding(
-        top = contentPadding.calculateTopPadding(),
-        start = contentPadding.calculateStartPadding(layoutDirection),
-        end = contentPadding.calculateEndPadding(layoutDirection),
-    ),) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = contentPadding.calculateTopPadding(),
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+            ),
+    ) {
         if (tabs.isNotEmpty()) {
             val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }.coerceAtLeast(0)
             PrimaryScrollableTabRow(
                 modifier = Modifier.zIndex(1f),
                 selectedTabIndex = selectedIndex,
+                modifier = Modifier.zIndex(1f),
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(
@@ -84,7 +90,7 @@ fun BrowseSourceHomeContent(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
+                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
                 ) {
                     items(sections) { section ->
                         BrowseSourceHomeSection(

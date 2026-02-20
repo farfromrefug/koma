@@ -732,11 +732,10 @@ class Downloader(
 
         try {
             // If the image is already downloaded, do nothing. Otherwise download from network
+            val cacheKey = download.source.getImageCacheKey(page.imageUrl!!)
             val file = when {
                 imageFile != null -> imageFile
-                chapterCache.isImageInCache(
-                    page.imageUrl!!,
-                ) -> copyImageFromCache(chapterCache.getImageFile(page.imageUrl!!), tmpDir, filename)
+                chapterCache.isImageInCache(cacheKey) -> copyImageFromCache(chapterCache.getImageFile(cacheKey), tmpDir, filename)
                 else -> downloadImage(page, download.source, tmpDir, filename)
             }
 

@@ -83,7 +83,7 @@ internal class HttpPageLoader(
         val imageUrl = page.imageUrl
 
         // Check if the image has been deleted
-        if (page.status == Page.State.Ready && imageUrl != null && !chapterCache.isImageInCache(imageUrl)) {
+        if (page.status == Page.State.Ready && imageUrl != null && !chapterCache.isImageInCache(source.getImageCacheKey(imageUrl))) {
             page.status = Page.State.Queue
         }
 
@@ -174,14 +174,15 @@ internal class HttpPageLoader(
                 page.imageUrl = source.getImageUrl(page)
             }
             val imageUrl = page.imageUrl!!
+            val cacheKey = source.getImageCacheKey(imageUrl)
 
-            if (!chapterCache.isImageInCache(imageUrl)) {
+            if (!chapterCache.isImageInCache(cacheKey)) {
                 page.status = Page.State.DownloadImage
                 val imageResponse = source.getImage(page)
-                chapterCache.putImageToCache(imageUrl, imageResponse)
+                chapterCache.putImageToCache(cacheKey, imageResponse)
             }
 
-            page.stream = { chapterCache.getImageFile(imageUrl).inputStream() }
+            page.stream = { chapterCache.getImageFile(cacheKey).inputStream() }
             page.status = Page.State.Ready
         } catch (e: Throwable) {
             page.status = Page.State.Error(e)

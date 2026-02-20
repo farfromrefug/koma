@@ -549,6 +549,18 @@ abstract class HttpSource : CatalogueSource {
     open fun prepareNewChapter(chapter: SChapter, manga: SManga) {}
 
     /**
+     * Returns a stable cache key for the given image URL.
+     * Override this method if the image URL contains volatile parameters (e.g. expiring
+     * signatures) that change between requests but do not affect the actual image content.
+     * The returned key is used for caching only; the original URL is still used for downloading.
+     *
+     * @since extensions-lib 1.6
+     * @param imageUrl the original image URL.
+     * @return a stable cache key for the image.
+     */
+    open fun getImageCacheKey(imageUrl: String): String = imageUrl
+
+    /**
      * Returns the direct download URL for a chapter archive (CBZ).
      * If implemented and returns a valid URL, the downloader will download the chapter as a CBZ file directly
      * instead of downloading individual pages. This is only used when the user has configured

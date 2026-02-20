@@ -3,8 +3,11 @@ package eu.kanade.presentation.browse
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
@@ -13,6 +16,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.zIndex
 import eu.kanade.presentation.browse.components.BrowseSourceHomeSection
 import eu.kanade.tachiyomi.source.model.HomeSection
 import eu.kanade.tachiyomi.source.model.HomeTab
@@ -44,10 +49,16 @@ fun BrowseSourceHomeContent(
     onLoadSection: (String) -> Unit,
     onTabSelected: (String) -> Unit = {},
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    val layoutDirection = LocalLayoutDirection.current
+    Column(modifier = Modifier.fillMaxSize().padding(
+        top = contentPadding.calculateTopPadding(),
+        start = contentPadding.calculateStartPadding(layoutDirection),
+        end = contentPadding.calculateEndPadding(layoutDirection),
+    ),) {
         if (tabs.isNotEmpty()) {
             val selectedIndex = tabs.indexOfFirst { it.id == selectedTabId }.coerceAtLeast(0)
             PrimaryScrollableTabRow(
+                modifier = Modifier.zIndex(1f),
                 selectedTabIndex = selectedIndex,
             ) {
                 tabs.forEachIndexed { index, tab ->
@@ -73,7 +84,7 @@ fun BrowseSourceHomeContent(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = contentPadding,
+                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
                 ) {
                     items(sections) { section ->
                         BrowseSourceHomeSection(

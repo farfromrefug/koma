@@ -52,6 +52,7 @@ import mihon.core.archive.archiveReader
 import mihon.domain.manga.model.toDomainManga
 import nl.adaptivity.xmlutil.serialization.XML
 import okhttp3.Response
+import okio.IOException
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
@@ -780,8 +781,9 @@ class Downloader(
             emit(file)
         }
             // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
-            .retryWhen { _, attempt ->
-                if (attempt < 3) {
+            .retryWhen { e, attempt ->
+                e.printStackTrace()
+                if (e !is IOException &&  attempt < 3) {
                     delay((2L shl attempt.toInt()) * 1000)
                     true
                 } else {

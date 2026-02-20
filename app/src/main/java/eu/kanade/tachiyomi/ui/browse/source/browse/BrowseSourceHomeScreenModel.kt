@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.library.LocalMangaImportJob
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.model.HomeSection
+import eu.kanade.tachiyomi.source.model.HomeTab
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -81,6 +82,17 @@ class BrowseSourceHomeScreenModel(
     val source = sourceManager.getOrStub(sourceId)
 
     init {
+        // Load tabs first (synchronous, as getHomeTabs() is not a suspend function)
+        val tabs = if (source is CatalogueSource) source.getHomeTabs() else emptyList()
+        // Restore the last selected tab id from preferences
+        val lastTabId = if (tabs.isNotEmpty()) {
+            val stored = sourcePreferences.lastHomeTab(sourceId).get()
+            if (stored.isNotEmpty() && tabs.any { it.id == stored }) stored else tabs.firstOrNull()?.id
+        } else {
+            null
+        }
+        mutableState.update { it.copy(tabs = tabs, selectedTabId = lastTabId) }
+
         loadHomePage()
 
         if (!getIncognitoState.await(source.id)) {
@@ -95,12 +107,13 @@ class BrowseSourceHomeScreenModel(
     private fun loadHomePage() {
         if (source !is CatalogueSource) return
 
-        mutableState.update { it.copy(isLoading = true) }
+        mutableState.update { it.copy(isLoading = true, loadedSections = emptySet()) }
 
         screenModelScope.launchIO {
             try {
-                val homePage = source.getHomePage()
-                
+                val tabId = state.value.selectedTabId
+                val homePage = source.getHomePage(tabId)
+
                 // Sections can start with empty manga - they'll be loaded lazily
                 mutableState.update {
                     it.copy(
@@ -126,16 +139,16 @@ class BrowseSourceHomeScreenModel(
      */
     fun loadSectionManga(sectionId: String) {
         if (source !is CatalogueSource) return
-        
+
         screenModelScope.launchIO {
             try {
                 // Load first page of manga for this section
-                val mangasPage = source.getHomeSectionManga(sectionId, page = 1)
-                
+                val mangasPage = source.getHomeSectionManga(sectionId, page = 0)
+
                 // Convert and insert into database
                 val domainManga = mangasPage.mangas.map { it.toDomainManga(sourceId) }
                 val mangaWithIds = networkToLocalManga(domainManga)
-                
+
                 // Update the specific section with loaded manga and mark as loaded
                 mutableState.update { state ->
                     val updatedSections = state.sections?.mapNotNull { section ->
@@ -169,6 +182,16 @@ class BrowseSourceHomeScreenModel(
                 }
             }
         }
+    }
+
+    /**
+     * Select a tab by its id. Persists the selection and reloads the home page.
+     */
+    fun selectTab(tabId: String) {
+        if (state.value.selectedTabId == tabId) return
+        sourcePreferences.lastHomeTab(sourceId).set(tabId)
+        mutableState.update { it.copy(selectedTabId = tabId, sections = null) }
+        loadHomePage()
     }
 
     /**
@@ -392,6 +415,8 @@ class BrowseSourceHomeScreenModel(
 
     @Immutable
     data class State(
+        val tabs: List<HomeTab> = emptyList(),
+        val selectedTabId: String? = null,
         val sections: List<HomeSection>? = null,
         val isLoading: Boolean = false,
         val dialog: Dialog? = null,

@@ -130,6 +130,8 @@ data class BrowseSourceHomeScreen(
                 isLoading = state.isLoading,
                 sourceId = sourceId,
                 loadedSections = state.loadedSections,
+                tabs = state.tabs,
+                selectedTabId = state.selectedTabId,
                 getManga = @Composable { manga ->
                     produceState(initialValue = manga) {
                         try {
@@ -164,10 +166,13 @@ data class BrowseSourceHomeScreen(
                 },
                 onSectionSeeMoreClick = { section ->
                     // Navigate to browse screen with section-specific query for infinite scroll
-                    navigator.push(BrowseSourceScreen(sourceId, null, section.sectionId))
+                    navigator.push(BrowseSourceScreen(sourceId, null, section.sectionId, section.title))
                 },
                 onLoadSection = { sectionId ->
                     screenModel.loadSectionManga(sectionId)
+                },
+                onTabSelected = { tabId ->
+                    screenModel.selectTab(tabId)
                 },
             )
 

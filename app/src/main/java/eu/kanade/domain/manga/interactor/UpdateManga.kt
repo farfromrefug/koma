@@ -25,18 +25,18 @@ class UpdateManga(
 
     suspend fun await(mangaUpdate: MangaUpdate): Boolean {
         val result = mangaRepository.update(mangaUpdate)
-        
+
         // When removing from library, also remove history
         if (result && mangaUpdate.favorite == false) {
             historyRepository.resetHistoryByMangaId(mangaUpdate.id)
         }
-        
+
         return result
     }
 
     suspend fun awaitAll(mangaUpdates: List<MangaUpdate>): Boolean {
         val result = mangaRepository.updateAll(mangaUpdates)
-        
+
         // When removing from library, also remove history
         if (result) {
             mangaUpdates
@@ -45,7 +45,7 @@ class UpdateManga(
                     historyRepository.resetHistoryByMangaId(update.id)
                 }
         }
-        
+
         return result
     }
 
@@ -93,6 +93,7 @@ class UpdateManga(
             MangaUpdate(
                 id = localManga.id,
                 title = title,
+                url = remoteManga.url,
                 coverLastModified = coverLastModified,
                 author = remoteManga.author,
                 artist = remoteManga.artist,
@@ -139,12 +140,12 @@ class UpdateManga(
         val result = mangaRepository.update(
             MangaUpdate(id = mangaId, favorite = favorite, dateAdded = dateAdded),
         )
-        
+
         // When removing from library, also remove history
         if (result && favorite == false) {
             historyRepository.resetHistoryByMangaId(mangaId)
         }
-        
+
         return result
     }
 }

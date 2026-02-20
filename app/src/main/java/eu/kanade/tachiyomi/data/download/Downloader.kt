@@ -781,9 +781,14 @@ class Downloader(
             emit(file)
         }
             // Retry 3 times, waiting 2, 4 and 8 seconds between attempts.
+            // If an IOException occurs, rethrow it immediately so the download is
+            // cancelled and the error can be shown to the user (e.g., via a snackbar).
             .retryWhen { e, attempt ->
                 e.printStackTrace()
-                if (e !is IOException &&  attempt < 3) {
+                // For IOExceptions (okio or java), fail fast and propagate the error.
+                if (e is IOException || e is java.io.IOException) throw e
+                // Retry other exceptions up to 3 attempts with exponential backoff.
+                if (attempt < 3) {
                     delay((2L shl attempt.toInt()) * 1000)
                     true
                 } else {

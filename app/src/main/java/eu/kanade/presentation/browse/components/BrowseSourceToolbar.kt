@@ -40,9 +40,10 @@ fun BrowseSourceToolbar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
     showDisplayModeIcon: Boolean = true,
     showSearchIcon: Boolean = false,
+    title: String? = null,
 ) {
     // Avoid capturing unstable source in actions lambda
-    val title = source?.name
+    val title = title ?: source?.name
     val isLocalSource = source is LocalSource
     val isConfigurableSource = source is ConfigurableSource
 

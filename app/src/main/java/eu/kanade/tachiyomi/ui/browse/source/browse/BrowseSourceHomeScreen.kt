@@ -166,7 +166,7 @@ data class BrowseSourceHomeScreen(
                 },
                 onSectionSeeMoreClick = { section ->
                     // Navigate to browse screen with section-specific query for infinite scroll
-                    navigator.push(BrowseSourceScreen(sourceId, null, section.sectionId))
+                    navigator.push(BrowseSourceScreen(sourceId, null, section.sectionId, section.title))
                 },
                 onLoadSection = { sectionId ->
                     screenModel.loadSectionManga(sectionId)

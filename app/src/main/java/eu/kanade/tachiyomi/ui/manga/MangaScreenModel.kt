@@ -265,11 +265,14 @@ class MangaScreenModel(
 
             // Fetch info-chapters when needed
             if (screenModelScope.isActive) {
-                val fetchFromSourceTasks = listOf(
-                    async { if (needRefreshInfo) fetchMangaFromSource() },
-                    async { if (needRefreshChapter) fetchChaptersFromSource() },
-                )
-                fetchFromSourceTasks.awaitAll()
+//                val fetchFromSourceTasks = listOf(
+//                    async { if (needRefreshInfo) fetchMangaFromSource() },
+//                    async { if (needRefreshChapter) fetchChaptersFromSource() },
+//                )
+                // make sure details are loaded fist in case they are needed for fetch chapters
+                async { if (needRefreshInfo) fetchMangaFromSource() }.await()
+                async { if (needRefreshChapter) fetchChaptersFromSource() }.await()
+//                fetchFromSourceTasks.awaitAll()
             }
 
             // Initial loading finished
@@ -350,7 +353,14 @@ class MangaScreenModel(
         try {
             withIOContext {
                 val networkManga = state.source.getMangaDetails(state.manga.toSManga())
-                updateManga.awaitUpdateFromSource(state.manga, networkManga, manualFetch)
+                val success = updateManga.awaitUpdateFromSource(state.manga, networkManga, manualFetch)
+
+                // Immediately read the updated manga from repository and update UI state so
+                // subsequent work (e.g. fetching chapters) uses the fresh manga values.
+                if (success) {
+                    val newManga = mangaRepository.getMangaById(state.manga.id)
+                    updateSuccessState { it.copy(manga = newManga) }
+                }
             }
         } catch (e: Throwable) {
             // Ignore early hints "errors" that aren't handled by OkHttp

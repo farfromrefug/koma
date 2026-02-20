@@ -113,7 +113,7 @@ class BrowseSourceHomeScreenModel(
             try {
                 val tabId = state.value.selectedTabId
                 val homePage = source.getHomePage(tabId)
-                
+
                 // Sections can start with empty manga - they'll be loaded lazily
                 mutableState.update {
                     it.copy(
@@ -139,16 +139,16 @@ class BrowseSourceHomeScreenModel(
      */
     fun loadSectionManga(sectionId: String) {
         if (source !is CatalogueSource) return
-        
+
         screenModelScope.launchIO {
             try {
                 // Load first page of manga for this section
-                val mangasPage = source.getHomeSectionManga(sectionId, page = 1)
-                
+                val mangasPage = source.getHomeSectionManga(sectionId, page = 0)
+
                 // Convert and insert into database
                 val domainManga = mangasPage.mangas.map { it.toDomainManga(sourceId) }
                 val mangaWithIds = networkToLocalManga(domainManga)
-                
+
                 // Update the specific section with loaded manga and mark as loaded
                 mutableState.update { state ->
                     val updatedSections = state.sections?.mapNotNull { section ->

@@ -15,8 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.graphics.Color
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
@@ -55,11 +54,9 @@ fun CropBordersSettingsDialog(
             },
             tabTitles = tabTitles,
             pagerState = pagerState,
+            scrimColor = Color.Transparent,
         ) { page ->
-            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-
             LaunchedEffect(Unit) {
-                window?.setDimAmount(0f)
                 onHideMenus()
             }
 

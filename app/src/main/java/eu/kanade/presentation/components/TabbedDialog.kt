@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import kotlinx.collections.immutable.ImmutableList
@@ -45,11 +46,13 @@ fun TabbedDialog(
     modifier: Modifier = Modifier,
     tabOverflowMenuContent: (@Composable ColumnScope.(() -> Unit) -> Unit)? = null,
     pagerState: PagerState = rememberPagerState { tabTitles.size },
+    scrimColor: Color = Color.Unspecified,
     content: @Composable (Int) -> Unit,
 ) {
     AdaptiveSheet(
         modifier = modifier,
         onDismissRequest = onDismissRequest,
+        scrimColor = scrimColor,
     ) {
         val scope = rememberCoroutineScope()
 

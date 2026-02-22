@@ -10,8 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.graphics.Color
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
@@ -41,11 +40,9 @@ fun FilterSettingsDialog(
             },
             tabTitles = tabTitles,
             pagerState = pagerState,
+            scrimColor = Color.Transparent,
         ) { page ->
-            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-
             LaunchedEffect(Unit) {
-                window?.setDimAmount(0f)
                 onHideMenus()
             }
 

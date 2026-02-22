@@ -62,6 +62,59 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
     }
 
     CheckboxItem(
+        label = stringResource(MR.strings.pref_sharpen_filter),
+        pref = screenModel.preferences.sharpenFilter(),
+    )
+    if (sharpenFilter) {
+        // Convert float (0.0-2.0) to int (0-20) for the slider
+        val sliderValue = (sharpenScale * SHARPEN_SCALE_MULTIPLIER).roundToInt()
+        SliderItem(
+            value = sliderValue,
+            valueRange = 0..20,
+            steps = 19,
+            label = stringResource(MR.strings.pref_sharpen_filter_scale),
+            valueString = "%.1f".format(sharpenScale),
+            onChange = { newValue ->
+                screenModel.preferences.sharpenFilterScale().set(newValue / SHARPEN_SCALE_MULTIPLIER.toFloat())
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
+
+    CheckboxItem(
+        label = stringResource(MR.strings.pref_eink_filter),
+        pref = screenModel.preferences.einkFilter(),
+    )
+    if (einkFilter) {
+        // Convert float (0.0-0.5) to int (0-50) for the slider
+        val brightnessSliderValue = (einkBrightness * EINK_MULTIPLIER).roundToInt()
+        SliderItem(
+            value = brightnessSliderValue,
+            valueRange = -50..50,
+            steps = 49,
+            label = stringResource(MR.strings.pref_eink_filter_brightness),
+            valueString = "%.2f".format(einkBrightness),
+            onChange = { newValue ->
+                screenModel.preferences.einkFilterBrightness().set(newValue / EINK_MULTIPLIER.toFloat())
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+        // Convert float (0.0-0.5) to int (0-50) for the slider
+        val contrastSliderValue = (einkContrast * EINK_MULTIPLIER).roundToInt()
+        SliderItem(
+            value = contrastSliderValue,
+            valueRange = -50..50,
+            steps = 49,
+            label = stringResource(MR.strings.pref_eink_filter_contrast),
+            valueString = "%.2f".format(einkContrast),
+            onChange = { newValue ->
+                screenModel.preferences.einkFilterContrast().set(newValue / EINK_MULTIPLIER.toFloat())
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
+
+    CheckboxItem(
         label = stringResource(MR.strings.pref_custom_brightness),
         pref = screenModel.preferences.customBrightness(),
     )
@@ -157,58 +210,6 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         pref = screenModel.preferences.invertedColors(),
     )
 
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_sharpen_filter),
-        pref = screenModel.preferences.sharpenFilter(),
-    )
-    if (sharpenFilter) {
-        // Convert float (0.0-2.0) to int (0-20) for the slider
-        val sliderValue = (sharpenScale * SHARPEN_SCALE_MULTIPLIER).roundToInt()
-        SliderItem(
-            value = sliderValue,
-            valueRange = 0..20,
-            steps = 19,
-            label = stringResource(MR.strings.pref_sharpen_filter_scale),
-            valueString = "%.1f".format(sharpenScale),
-            onChange = { newValue ->
-                screenModel.preferences.sharpenFilterScale().set(newValue / SHARPEN_SCALE_MULTIPLIER.toFloat())
-            },
-            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
-    }
-
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_eink_filter),
-        pref = screenModel.preferences.einkFilter(),
-    )
-    if (einkFilter) {
-        // Convert float (0.0-0.5) to int (0-50) for the slider
-        val brightnessSliderValue = (einkBrightness * EINK_MULTIPLIER).roundToInt()
-        SliderItem(
-            value = brightnessSliderValue,
-            valueRange = -50..50,
-            steps = 49,
-            label = stringResource(MR.strings.pref_eink_filter_brightness),
-            valueString = "%.2f".format(einkBrightness),
-            onChange = { newValue ->
-                screenModel.preferences.einkFilterBrightness().set(newValue / EINK_MULTIPLIER.toFloat())
-            },
-            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
-        // Convert float (0.0-0.5) to int (0-50) for the slider
-        val contrastSliderValue = (einkContrast * EINK_MULTIPLIER).roundToInt()
-        SliderItem(
-            value = contrastSliderValue,
-            valueRange = -50..50,
-            steps = 49,
-            label = stringResource(MR.strings.pref_eink_filter_contrast),
-            valueString = "%.2f".format(einkContrast),
-            onChange = { newValue ->
-                screenModel.preferences.einkFilterContrast().set(newValue / EINK_MULTIPLIER.toFloat())
-            },
-            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
-    }
 
     CheckboxItem(
         label = stringResource(MR.strings.pref_save_color_filters_per_chapter),

@@ -44,14 +44,9 @@ fun FilterSettingsDialog(
         ) { page ->
             val window = (LocalView.current.parent as? DialogWindowProvider)?.window
 
-            LaunchedEffect(pagerState.currentPage) {
-                if (pagerState.currentPage == 2) {
-                    window?.setDimAmount(0f)
-                    onHideMenus()
-                } else {
-                    window?.setDimAmount(0.5f)
-                    onShowMenus()
-                }
+            LaunchedEffect(Unit) {
+                window?.setDimAmount(0f)
+                onHideMenus()
             }
 
             Column(

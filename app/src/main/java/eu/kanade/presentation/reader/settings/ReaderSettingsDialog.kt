@@ -35,7 +35,7 @@ fun ReaderSettingsDialog(
 
     BoxWithConstraints {
         TabbedDialog(
-            modifier = Modifier.heightIn(max = maxHeight * 0.75f),
+            modifier = Modifier.heightIn(max = maxHeight * 0.5f),
             onDismissRequest = {
                 onDismissRequest()
                 onShowMenus()

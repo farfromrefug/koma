@@ -919,6 +919,9 @@ class ReaderViewModel @JvmOverloads constructor(
             invertedColors = readerPreferences.invertedColors().get(),
             sharpenFilter = readerPreferences.sharpenFilter().get(),
             sharpenFilterScale = readerPreferences.sharpenFilterScale().get(),
+            einkFilter = readerPreferences.einkFilter().get(),
+            einkFilterBrightness = readerPreferences.einkFilterBrightness().get(),
+            einkFilterContrast = readerPreferences.einkFilterContrast().get(),
         )
     }
 
@@ -936,6 +939,9 @@ class ReaderViewModel @JvmOverloads constructor(
         readerPreferences.invertedColors().set(colorFilter.invertedColors)
         readerPreferences.sharpenFilter().set(colorFilter.sharpenFilter)
         readerPreferences.sharpenFilterScale().set(colorFilter.sharpenFilterScale)
+        readerPreferences.einkFilter().set(colorFilter.einkFilter)
+        readerPreferences.einkFilterBrightness().set(colorFilter.einkFilterBrightness)
+        readerPreferences.einkFilterContrast().set(colorFilter.einkFilterContrast)
     }
 
     /**

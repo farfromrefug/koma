@@ -9,6 +9,9 @@ CREATE TABLE chapter_color_filters(
     inverted_colors INTEGER NOT NULL DEFAULT 0,
     sharpen_filter INTEGER NOT NULL DEFAULT 0,
     sharpen_filter_scale REAL NOT NULL DEFAULT 0.5,
+    eink_filter INTEGER NOT NULL DEFAULT 0,
+    eink_filter_brightness REAL NOT NULL DEFAULT 0.1,
+    eink_filter_contrast REAL NOT NULL DEFAULT 0.2,
     FOREIGN KEY(chapter_id) REFERENCES chapters (_id)
     ON DELETE CASCADE
 );
@@ -29,7 +32,10 @@ INSERT OR REPLACE INTO chapter_color_filters(
     grayscale,
     inverted_colors,
     sharpen_filter,
-    sharpen_filter_scale
+    sharpen_filter_scale,
+    eink_filter,
+    eink_filter_brightness,
+    eink_filter_contrast
 )
 VALUES (
     :chapterId,
@@ -41,7 +47,10 @@ VALUES (
     :grayscale,
     :invertedColors,
     :sharpenFilter,
-    :sharpenFilterScale
+    :sharpenFilterScale,
+    :einkFilter,
+    :einkFilterBrightness,
+    :einkFilterContrast
 );
 
 deleteByChapterId:

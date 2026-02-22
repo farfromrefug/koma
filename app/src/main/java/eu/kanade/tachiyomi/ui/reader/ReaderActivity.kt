@@ -149,6 +149,29 @@ class ReaderActivity : BaseActivity() {
                 return half4(clamp(sharpened.rgb, half3(0.0), half3(1.0)), center.a);
             }
         """
+        // AGSL e-ink optimization shader: reduces contrast and boosts brightness
+        // to improve readability on e-ink displays where colors tend to appear dark.
+        // brightness: 0.0 to 0.5, amount to add to each channel
+        // contrast: 0.0 to 0.5, amount of contrast reduction (factor = 1 - contrast)
+        private const val EINK_SHADER = """
+            uniform shader inputImage;
+            uniform float brightness;
+            uniform float contrast;
+
+            half4 main(float2 coord) {
+                half4 color = inputImage.eval(coord);
+
+                // Apply contrast reduction: scale RGB values around 0.5 midpoint
+                float factor = 1.0 - contrast;
+                half3 rgb = (color.rgb - half3(0.5)) * factor + half3(0.5);
+
+                // Apply brightness boost
+                rgb = rgb + half3(brightness);
+
+                // Clamp to valid range and preserve alpha
+                return half4(clamp(rgb, half3(0.0), half3(1.0)), color.a);
+            }
+        """
     }
 
     private val readerPreferences = Injekt.get<ReaderPreferences>()
@@ -897,13 +920,27 @@ class ReaderActivity : BaseActivity() {
      */
     private inner class ReaderConfig {
 
-        // Current sharpen settings for combining with other paint effects on API < 31
+        // Current filter settings for combining with other paint effects on API < 31
         private var currentSharpenEnabled = false
         private var currentSharpenScale = 0f
+        private var currentEinkEnabled = false
+        private var currentEinkBrightness = 0f
+        private var currentEinkContrast = 0f
 
-        private fun getCombinedPaint(grayscale: Boolean, invertedColors: Boolean, sharpenEnabled: Boolean = currentSharpenEnabled, sharpenScale: Float = currentSharpenScale): Paint? {
+        private fun getCombinedPaint(
+            grayscale: Boolean,
+            invertedColors: Boolean,
+            sharpenEnabled: Boolean = currentSharpenEnabled,
+            sharpenScale: Float = currentSharpenScale,
+            einkEnabled: Boolean = currentEinkEnabled,
+            einkBrightness: Float = currentEinkBrightness,
+            einkContrast: Float = currentEinkContrast,
+        ): Paint? {
+            val isLegacyApi = Build.VERSION.SDK_INT < Build.VERSION_CODES.S
             // Check if any effect is enabled
-            val needsPaint = grayscale || invertedColors || (sharpenEnabled && sharpenScale > 0f && Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
+            val needsPaint = grayscale || invertedColors ||
+                (sharpenEnabled && sharpenScale > 0f && isLegacyApi) ||
+                (einkEnabled && isLegacyApi)
             if (!needsPaint) return null
 
             return Paint().apply {
@@ -925,7 +962,7 @@ class ReaderActivity : BaseActivity() {
                             )
                         }
                         // For API < 31, apply contrast enhancement as sharpening approximation
-                        if (sharpenEnabled && sharpenScale > 0f && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                        if (sharpenEnabled && sharpenScale > 0f && isLegacyApi) {
                             val contrastFactor = 1f + (sharpenScale * 0.3f)
                             val translate = (-0.5f * contrastFactor + 0.5f) * 255f
                             postConcat(
@@ -934,6 +971,21 @@ class ReaderActivity : BaseActivity() {
                                         contrastFactor, 0f, 0f, 0f, translate,
                                         0f, contrastFactor, 0f, 0f, translate,
                                         0f, 0f, contrastFactor, 0f, translate,
+                                        0f, 0f, 0f, 1f, 0f,
+                                    ),
+                                ),
+                            )
+                        }
+                        // For API < 31, apply e-ink optimization via ColorMatrix
+                        if (einkEnabled && isLegacyApi) {
+                            val factor = 1f - einkContrast
+                            val translate = (1f - factor) * 0.5f * 255f + einkBrightness * 255f
+                            postConcat(
+                                ColorMatrix(
+                                    floatArrayOf(
+                                        factor, 0f, 0f, 0f, translate,
+                                        0f, factor, 0f, 0f, translate,
+                                        0f, 0f, factor, 0f, translate,
                                         0f, 0f, 0f, 1f, 0f,
                                     ),
                                 ),
@@ -975,26 +1027,38 @@ class ReaderActivity : BaseActivity() {
                 .onEach(::setCustomBrightness)
                 .launchIn(lifecycleScope)
 
-            // Combine grayscale, inverted colors, and sharpen (for API < 31) filters
+            // Combine grayscale, inverted colors, sharpen, and eink filters
             combine(
-                readerPreferences.grayscale().changes(),
-                readerPreferences.invertedColors().changes(),
-                readerPreferences.sharpenFilter().changes(),
-                readerPreferences.sharpenFilterScale().changes(),
-            ) { grayscale, invertedColors, sharpenEnabled, sharpenScale ->
-                ColorFilterState(grayscale, invertedColors, sharpenEnabled, sharpenScale)
+                combine(
+                    readerPreferences.grayscale().changes(),
+                    readerPreferences.invertedColors().changes(),
+                ) { a, b -> a to b },
+                combine(
+                    readerPreferences.sharpenFilter().changes(),
+                    readerPreferences.sharpenFilterScale().changes(),
+                ) { a, b -> a to b },
+                combine(
+                    readerPreferences.einkFilter().changes(),
+                    readerPreferences.einkFilterBrightness().changes(),
+                    readerPreferences.einkFilterContrast().changes(),
+                ) { a, b, c -> Triple(a, b, c) },
+            ) { (grayscale, invertedColors), (sharpenEnabled, sharpenScale), eink ->
+                ColorFilterState(grayscale, invertedColors, sharpenEnabled, sharpenScale, eink.first, eink.second, eink.third)
             }
                 .onEach { state ->
-                    // Update current sharpen state for API < 31
+                    // Update current filter state for API < 31
                     currentSharpenEnabled = state.sharpenEnabled
                     currentSharpenScale = state.sharpenScale
+                    currentEinkEnabled = state.einkEnabled
+                    currentEinkBrightness = state.einkBrightness
+                    currentEinkContrast = state.einkContrast
 
-                    // Apply layer paint (includes sharpen for API < 31)
+                    // Apply layer paint (includes sharpen and eink for API < 31)
                     setLayerPaint(state.grayscale, state.invertedColors)
 
-                    // For API 31+, apply RenderEffect-based sharpen
+                    // For API 31+, apply RenderEffect-based filters
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        setSharpenEffect(state.sharpenEnabled, state.sharpenScale)
+                        setFilterEffects(state)
                     }
                 }
                 .launchIn(lifecycleScope)
@@ -1091,46 +1155,77 @@ class ReaderActivity : BaseActivity() {
         }
 
         /**
-         * Sets the sharpen effect on the viewer container.
-         * - API 33+ (Android 13+): Uses RuntimeShader for true image sharpening via unsharp mask
-         * - API 31-32 (Android 12-12L): Uses RenderEffect with contrast enhancement
-         * - API < 31: Uses Paint ColorMatrix via setLayerType (handled by getCombinedPaint)
-         *
-         * @param enabled Whether the sharpen filter is enabled
-         * @param scale The sharpen intensity (0.0 to 2.0, validated by preferences slider)
+         * Sets the filter render effects on the viewer container for API 31+.
+         * Applies sharpen and/or e-ink optimization effects, chaining them if both are active.
+         * - API 33+ (Android 13+): Uses RuntimeShader for true image-level effects
+         * - API 31-32 (Android 12-12L): Uses RenderEffect with ColorMatrix approximations
          */
         @RequiresApi(Build.VERSION_CODES.S)
-        private fun setSharpenEffect(enabled: Boolean, scale: Float) {
-            // Disable effect when not enabled or scale is 0 (no sharpening)
-            if (!enabled || scale == 0f) {
-                binding.viewerContainer.setRenderEffect(null)
-                return
-            }
-
+        private fun setFilterEffects(state: ColorFilterState) {
             try {
-                val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    // API 33+: True image sharpening using AGSL RuntimeShader
-                    val sharpenShader = RuntimeShader(SHARPEN_SHADER)
-                    sharpenShader.setFloatUniform("scale", scale)
-                    RenderEffect.createRuntimeShaderEffect(sharpenShader, SHADER_INPUT_NAME)
-                } else {
-                    // API 31-32: Fallback to contrast enhancement which creates a perception of sharpness
-                    // Scale 0.0-2.0 maps to contrast multiplier 1.0-1.6
-                    val contrastFactor = 1f + (scale * 0.3f)
-                    val translate = (-0.5f * contrastFactor + 0.5f) * 255f
-                    val contrastMatrix = ColorMatrix(
-                        floatArrayOf(
-                            contrastFactor, 0f, 0f, 0f, translate,
-                            0f, contrastFactor, 0f, 0f, translate,
-                            0f, 0f, contrastFactor, 0f, translate,
-                            0f, 0f, 0f, 1f, 0f,
+                val sharpenEffect: RenderEffect? = if (state.sharpenEnabled && state.sharpenScale > 0f) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val shader = RuntimeShader(SHARPEN_SHADER)
+                        shader.setFloatUniform("scale", state.sharpenScale)
+                        RenderEffect.createRuntimeShaderEffect(shader, SHADER_INPUT_NAME)
+                    } else {
+                        val contrastFactor = 1f + (state.sharpenScale * 0.3f)
+                        val translate = (-0.5f * contrastFactor + 0.5f) * 255f
+                        RenderEffect.createColorFilterEffect(
+                            ColorMatrixColorFilter(
+                                ColorMatrix(
+                                    floatArrayOf(
+                                        contrastFactor, 0f, 0f, 0f, translate,
+                                        0f, contrastFactor, 0f, 0f, translate,
+                                        0f, 0f, contrastFactor, 0f, translate,
+                                        0f, 0f, 0f, 1f, 0f,
+                                    ),
+                                ),
+                            ),
                         )
-                    )
-                    RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(contrastMatrix))
+                    }
+                } else {
+                    null
                 }
-                binding.viewerContainer.setRenderEffect(effect)
+
+                val einkEffect: RenderEffect? = if (state.einkEnabled) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val shader = RuntimeShader(EINK_SHADER)
+                        shader.setFloatUniform("brightness", state.einkBrightness)
+                        shader.setFloatUniform("contrast", state.einkContrast)
+                        RenderEffect.createRuntimeShaderEffect(shader, SHADER_INPUT_NAME)
+                    } else {
+                        val factor = 1f - state.einkContrast
+                        val translate = (1f - factor) * 0.5f * 255f + state.einkBrightness * 255f
+                        RenderEffect.createColorFilterEffect(
+                            ColorMatrixColorFilter(
+                                ColorMatrix(
+                                    floatArrayOf(
+                                        factor, 0f, 0f, 0f, translate,
+                                        0f, factor, 0f, 0f, translate,
+                                        0f, 0f, factor, 0f, translate,
+                                        0f, 0f, 0f, 1f, 0f,
+                                    ),
+                                ),
+                            ),
+                        )
+                    }
+                } else {
+                    null
+                }
+
+                val combined = when {
+                    // Sharpen is applied first (inner), then e-ink adjustments (outer),
+                    // so brightness/contrast tweaks are applied after edge enhancement.
+                    sharpenEffect != null && einkEffect != null ->
+                        RenderEffect.createChainEffect(sharpenEffect, einkEffect)
+                    sharpenEffect != null -> sharpenEffect
+                    einkEffect != null -> einkEffect
+                    else -> null
+                }
+                binding.viewerContainer.setRenderEffect(combined)
             } catch (e: Exception) {
-                logcat(LogPriority.ERROR, e) { "Failed to apply sharpen effect" }
+                logcat(LogPriority.ERROR, e) { "Failed to apply filter effects" }
                 binding.viewerContainer.setRenderEffect(null)
             }
         }
@@ -1144,5 +1239,8 @@ class ReaderActivity : BaseActivity() {
         val invertedColors: Boolean,
         val sharpenEnabled: Boolean,
         val sharpenScale: Float,
+        val einkEnabled: Boolean,
+        val einkBrightness: Float,
+        val einkContrast: Float,
     )
 }

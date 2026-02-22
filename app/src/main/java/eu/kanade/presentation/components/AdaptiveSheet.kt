@@ -5,9 +5,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.core.lifecycle.DisposableEffectIgnoringConfiguration
 import cafe.adriel.voyager.core.screen.Screen
@@ -64,6 +68,7 @@ fun AdaptiveSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     enableSwipeDismiss: Boolean = true,
+    scrimColor: Color = Color.Unspecified,
     content: @Composable () -> Unit,
 ) {
     val isTabletUi = isTabletUi()
@@ -72,11 +77,19 @@ fun AdaptiveSheet(
         onDismissRequest = onDismissRequest,
         properties = dialogProperties,
     ) {
+        val view = LocalView.current
+        SideEffect {
+            val window = (view.parent as? DialogWindowProvider)?.window
+            if (scrimColor == Color.Transparent) {
+                window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            }
+        }
         AdaptiveSheetImpl(
             isTabletUi = isTabletUi,
             enableSwipeDismiss = enableSwipeDismiss,
             onDismissRequest = onDismissRequest,
             modifier = modifier,
+            scrimColor = scrimColor,
         ) {
             content()
         }

@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -58,6 +59,7 @@ fun AdaptiveSheet(
     enableSwipeDismiss: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    scrimColor: Color = Color.Unspecified,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -70,10 +72,10 @@ fun AdaptiveSheet(
     } else {
         null
     }
-    val scrimColor = if (isEinkMode) {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-    } else {
-        MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
+    val resolvedScrimColor = when {
+        scrimColor != Color.Unspecified -> scrimColor
+        isEinkMode -> MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        else -> MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
     }
 
     if (isTabletUi) {
@@ -97,7 +99,7 @@ fun AdaptiveSheet(
                     onClick = internalOnDismissRequest,
                 )
                 .fillMaxSize()
-                .background(scrimColor.copy(alpha = scrimColor.alpha * alpha))
+                .background(resolvedScrimColor.copy(alpha = resolvedScrimColor.alpha * alpha))
                 .alpha(alpha),
             contentAlignment = Alignment.Center,
         ) {
@@ -150,7 +152,7 @@ fun AdaptiveSheet(
                     onClick = internalOnDismissRequest,
                 )
                 .fillMaxSize()
-                .background(scrimColor)
+                .background(resolvedScrimColor)
                 .onSizeChanged {
                     val anchors = DraggableAnchors {
                         0 at 0f

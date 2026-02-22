@@ -1,7 +1,9 @@
 package eu.kanade.presentation.reader
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -35,15 +37,20 @@ fun OrientationSelectDialog(
     val manga by screenModel.mangaFlow.collectAsState()
     val orientation = remember(manga) { ReaderOrientation.fromPreference(manga?.readerOrientation?.toInt()) }
 
-    AdaptiveSheet(onDismissRequest = onDismissRequest) {
-        DialogContent(
-            orientation = orientation,
-            onChangeOrientation = {
-                screenModel.onChangeOrientation(it)
-                onChange(it.stringRes)
-                onDismissRequest()
-            },
-        )
+    BoxWithConstraints {
+        AdaptiveSheet(
+            modifier = Modifier.heightIn(max = maxHeight * 0.5f),
+            onDismissRequest = onDismissRequest,
+        ) {
+            DialogContent(
+                orientation = orientation,
+                onChangeOrientation = {
+                    screenModel.onChangeOrientation(it)
+                    onChange(it.stringRes)
+                    onDismissRequest()
+                },
+            )
+        }
     }
 }
 

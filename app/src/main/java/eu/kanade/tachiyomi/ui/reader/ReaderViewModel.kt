@@ -842,6 +842,10 @@ class ReaderViewModel @JvmOverloads constructor(
         mutableState.update { it.copy(dialog = Dialog.CropBordersSettings) }
     }
 
+    fun openFiltersSettingsDialog() {
+        mutableState.update { it.copy(dialog = Dialog.FiltersSettings) }
+    }
+
     fun openChapterInfoDialog() {
         val dbChapter = state.value.currentChapter?.chapter ?: return
         val domainChapter = dbChapter.toDomainChapter() ?: return
@@ -919,6 +923,9 @@ class ReaderViewModel @JvmOverloads constructor(
             invertedColors = readerPreferences.invertedColors().get(),
             sharpenFilter = readerPreferences.sharpenFilter().get(),
             sharpenFilterScale = readerPreferences.sharpenFilterScale().get(),
+            einkFilter = readerPreferences.einkFilter().get(),
+            einkFilterBrightness = readerPreferences.einkFilterBrightness().get(),
+            einkFilterContrast = readerPreferences.einkFilterContrast().get(),
         )
     }
 
@@ -936,6 +943,9 @@ class ReaderViewModel @JvmOverloads constructor(
         readerPreferences.invertedColors().set(colorFilter.invertedColors)
         readerPreferences.sharpenFilter().set(colorFilter.sharpenFilter)
         readerPreferences.sharpenFilterScale().set(colorFilter.sharpenFilterScale)
+        readerPreferences.einkFilter().set(colorFilter.einkFilter)
+        readerPreferences.einkFilterBrightness().set(colorFilter.einkFilterBrightness)
+        readerPreferences.einkFilterContrast().set(colorFilter.einkFilterContrast)
     }
 
     /**
@@ -1118,6 +1128,7 @@ class ReaderViewModel @JvmOverloads constructor(
         data object Loading : Dialog
         data object Settings : Dialog
         data object CropBordersSettings : Dialog
+        data object FiltersSettings : Dialog
         data object ReadingModeSelect : Dialog
         data object OrientationModeSelect : Dialog
         data class PageActions(val page: ReaderPage) : Dialog

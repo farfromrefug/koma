@@ -67,6 +67,7 @@ fun ReaderAppBars(
     onClickCropBorder: () -> Unit,
     onLongClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
+    onLongClickSettings: () -> Unit,
 ) {
     val isRtl = viewer is R2LPagerViewer
     val isEinkMode = LocalEinkMode.current
@@ -139,6 +140,7 @@ fun ReaderAppBars(
                     onClickCropBorder = onClickCropBorder,
                     onLongClickCropBorder = onLongClickCropBorder,
                     onClickSettings = onClickSettings,
+                    onLongClickSettings = onLongClickSettings,
                 )
             }
         }

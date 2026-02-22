@@ -1,0 +1,3 @@
+ALTER TABLE chapter_color_filters ADD COLUMN eink_filter INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE chapter_color_filters ADD COLUMN eink_filter_brightness REAL NOT NULL DEFAULT 0.1;
+ALTER TABLE chapter_color_filters ADD COLUMN eink_filter_contrast REAL NOT NULL DEFAULT 0.2;

@@ -145,6 +145,12 @@ class ReaderPreferences(
 
     fun sharpenFilterScale() = preferenceStore.getFloat("pref_sharpen_filter_scale", 0.5f)
 
+    fun einkFilter() = preferenceStore.getBoolean("pref_eink_filter", false)
+
+    fun einkFilterBrightness() = preferenceStore.getFloat("pref_eink_filter_brightness", 0.1f)
+
+    fun einkFilterContrast() = preferenceStore.getFloat("pref_eink_filter_contrast", 0.2f)
+
     fun saveColorFiltersPerChapter() = preferenceStore.getBoolean("pref_save_color_filters_per_chapter", false)
 
     // endregion

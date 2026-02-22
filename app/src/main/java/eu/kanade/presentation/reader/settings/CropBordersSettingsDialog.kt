@@ -48,7 +48,7 @@ fun CropBordersSettingsDialog(
 
     BoxWithConstraints {
         TabbedDialog(
-            modifier = Modifier.heightIn(max = maxHeight * 0.75f),
+            modifier = Modifier.heightIn(max = maxHeight * 0.3f),
             onDismissRequest = {
                 onDismissRequest()
                 onShowMenus()

@@ -16,6 +16,9 @@ data class ChapterColorFilter(
     val invertedColors: Boolean = false,
     val sharpenFilter: Boolean = false,
     val sharpenFilterScale: Float = 0.5f,
+    val einkFilter: Boolean = false,
+    val einkFilterBrightness: Float = 0.1f,
+    val einkFilterContrast: Float = 0.2f,
 ) {
     companion object {
         fun create(chapterId: Long) = ChapterColorFilter(chapterId = chapterId)

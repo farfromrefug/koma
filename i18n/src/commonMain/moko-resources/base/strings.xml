@@ -461,6 +461,9 @@
     <string name="pref_inverted_colors">Inverted</string>
     <string name="pref_sharpen_filter">Sharpen</string>
     <string name="pref_sharpen_filter_scale">Sharpen strength</string>
+    <string name="pref_eink_filter">E-ink optimization</string>
+    <string name="pref_eink_filter_brightness">Brightness boost</string>
+    <string name="pref_eink_filter_contrast">Contrast reduction</string>
     <string name="pref_save_color_filters_per_chapter">Save color filters per chapter</string>
     <string name="pref_custom_color_filter">Custom color filter</string>
     <string name="pref_color_filter_mode">Color filter blend mode</string>

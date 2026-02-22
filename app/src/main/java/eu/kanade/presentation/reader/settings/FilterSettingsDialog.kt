@@ -19,23 +19,22 @@ import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 
+
 @Composable
-fun ReaderSettingsDialog(
+fun FilterSettingsDialog(
     onDismissRequest: () -> Unit,
     onShowMenus: () -> Unit,
     onHideMenus: () -> Unit,
     screenModel: ReaderSettingsScreenModel,
 ) {
     val tabTitles = persistentListOf(
-        stringResource(MR.strings.pref_category_reading_mode),
-        stringResource(MR.strings.pref_category_general),
         stringResource(MR.strings.custom_filter),
     )
-    val pagerState = rememberPagerState { tabTitles.size }
+    val pagerState = rememberPagerState() { tabTitles.size }
 
     BoxWithConstraints {
         TabbedDialog(
-            modifier = Modifier.heightIn(max = maxHeight * 0.5f),
+            modifier = Modifier.heightIn(max = maxHeight * 0.3f),
             onDismissRequest = {
                 onDismissRequest()
                 onShowMenus()
@@ -45,14 +44,9 @@ fun ReaderSettingsDialog(
         ) { page ->
             val window = (LocalView.current.parent as? DialogWindowProvider)?.window
 
-            LaunchedEffect(pagerState.currentPage) {
-                if (pagerState.currentPage == 2) {
-                    window?.setDimAmount(0f)
-                    onHideMenus()
-                } else {
-                    window?.setDimAmount(0.5f)
-                    onShowMenus()
-                }
+            LaunchedEffect(Unit) {
+                window?.setDimAmount(0f)
+                onHideMenus()
             }
 
             Column(
@@ -61,9 +55,7 @@ fun ReaderSettingsDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 when (page) {
-                    0 -> ReadingModePage(screenModel)
-                    1 -> GeneralPage(screenModel)
-                    2 -> ColorFilterPage(screenModel)
+                    0 -> ColorFilterPage(screenModel)
                 }
             }
         }

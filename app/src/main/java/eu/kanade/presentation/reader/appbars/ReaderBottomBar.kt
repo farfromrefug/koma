@@ -36,6 +36,7 @@ fun ReaderBottomBar(
     onClickCropBorder: () -> Unit,
     onLongClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
+    onLongClickSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -76,7 +77,16 @@ fun ReaderBottomBar(
             )
         }
 
-        IconButton(onClick = onClickSettings) {
+        Box(
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .combinedClickable(
+                    onClick = onClickSettings,
+                    onLongClick = onLongClickSettings,
+                    role = Role.Button,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 imageVector = Icons.Outlined.Settings,
                 contentDescription = stringResource(MR.strings.action_settings),

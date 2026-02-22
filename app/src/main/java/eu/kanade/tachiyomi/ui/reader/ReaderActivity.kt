@@ -60,6 +60,7 @@ import eu.kanade.presentation.reader.ReaderPageIndicator
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.settings.CropBordersSettingsDialog
+import eu.kanade.presentation.reader.settings.FilterSettingsDialog
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
@@ -364,6 +365,15 @@ class ReaderActivity : BaseActivity() {
                     screenModel = settingsScreenModel,
                 )
             }
+
+            is ReaderViewModel.Dialog.FiltersSettings -> {
+                FilterSettingsDialog(
+                    onDismissRequest = onDismissRequest,
+                    onShowMenus = { setMenuVisibility(true) },
+                    onHideMenus = { setMenuVisibility(false) },
+                    screenModel = settingsScreenModel,
+                )
+            }
             is ReaderViewModel.Dialog.CropBordersSettings -> {
                 CropBordersSettingsDialog(
                     onDismissRequest = onDismissRequest,
@@ -434,18 +444,18 @@ class ReaderActivity : BaseActivity() {
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        
+
         val newMangaId = intent.extras?.getLong("manga", -1) ?: -1L
         val newChapterId = intent.extras?.getLong("chapter", -1) ?: -1L
-        
+
         // Get current manga/chapter from ViewModel
         val currentMangaId = viewModel.manga?.id ?: -1L
         val currentChapterId = viewModel.state.value.viewerChapters?.currChapter?.chapter?.id ?: -1L
-        
+
         // Check if the new intent has valid IDs and different manga/chapter
         val hasValidIds = newMangaId != -1L && newChapterId != -1L
         val isDifferentContent = newMangaId != currentMangaId || newChapterId != currentChapterId
-        
+
         // If manga or chapter is different, restart the activity with new content
         if (hasValidIds && isDifferentContent) {
             // Finish and restart to ensure ViewModel is cleared and reinitialized
@@ -609,6 +619,10 @@ class ReaderActivity : BaseActivity() {
                 viewModel.openCropBordersSettingsDialog()
             },
             onClickSettings = viewModel::openSettingsDialog,
+
+            onLongClickSettings = {
+                viewModel.openFiltersSettingsDialog()
+            },
         )
     }
 

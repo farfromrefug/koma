@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel) {
     val savePerChapter by screenModel.preferences.saveColorFiltersPerChapter().collectAsState()
-    
+
     // Auto-save color filters when they change and per-chapter saving is enabled
     val customBrightness by screenModel.preferences.customBrightness().collectAsState()
     val customBrightnessValue by screenModel.preferences.customBrightnessValue().collectAsState()
@@ -186,7 +186,7 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         val brightnessSliderValue = (einkBrightness * EINK_MULTIPLIER).roundToInt()
         SliderItem(
             value = brightnessSliderValue,
-            valueRange = 0..50,
+            valueRange = -50..50,
             steps = 49,
             label = stringResource(MR.strings.pref_eink_filter_brightness),
             valueString = "%.2f".format(einkBrightness),
@@ -199,7 +199,7 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         val contrastSliderValue = (einkContrast * EINK_MULTIPLIER).roundToInt()
         SliderItem(
             value = contrastSliderValue,
-            valueRange = 0..50,
+            valueRange = -50..50,
             steps = 49,
             label = stringResource(MR.strings.pref_eink_filter_contrast),
             valueString = "%.2f".format(einkContrast),

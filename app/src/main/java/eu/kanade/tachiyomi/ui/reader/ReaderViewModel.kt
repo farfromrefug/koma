@@ -926,6 +926,7 @@ class ReaderViewModel @JvmOverloads constructor(
             einkFilter = readerPreferences.einkFilter().get(),
             einkFilterBrightness = readerPreferences.einkFilterBrightness().get(),
             einkFilterContrast = readerPreferences.einkFilterContrast().get(),
+            einkFilterSaturation = readerPreferences.einkFilterSaturation().get(),
         )
     }
 
@@ -946,6 +947,7 @@ class ReaderViewModel @JvmOverloads constructor(
         readerPreferences.einkFilter().set(colorFilter.einkFilter)
         readerPreferences.einkFilterBrightness().set(colorFilter.einkFilterBrightness)
         readerPreferences.einkFilterContrast().set(colorFilter.einkFilterContrast)
+        readerPreferences.einkFilterSaturation().set(colorFilter.einkFilterSaturation)
     }
 
     /**

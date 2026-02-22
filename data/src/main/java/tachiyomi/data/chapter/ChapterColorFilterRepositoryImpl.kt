@@ -31,6 +31,7 @@ class ChapterColorFilterRepositoryImpl(
                 einkFilter = colorFilter.einkFilter.toLong(),
                 einkFilterBrightness = colorFilter.einkFilterBrightness.toDouble(),
                 einkFilterContrast = colorFilter.einkFilterContrast.toDouble(),
+                einkFilterSaturation = colorFilter.einkFilterSaturation.toDouble(),
             )
         }
     }
@@ -55,6 +56,7 @@ class ChapterColorFilterRepositoryImpl(
         einkFilter: Long,
         einkFilterBrightness: Double,
         einkFilterContrast: Double,
+        einkFilterSaturation: Double,
     ): ChapterColorFilter = ChapterColorFilter(
         chapterId = chapterId,
         customBrightness = customBrightness == 1L,
@@ -69,5 +71,6 @@ class ChapterColorFilterRepositoryImpl(
         einkFilter = einkFilter == 1L,
         einkFilterBrightness = einkFilterBrightness.toFloat(),
         einkFilterContrast = einkFilterContrast.toFloat(),
+        einkFilterSaturation = einkFilterSaturation.toFloat(),
     )
 }

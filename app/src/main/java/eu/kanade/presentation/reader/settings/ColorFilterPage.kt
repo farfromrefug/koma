@@ -39,6 +39,7 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
     val einkFilter by screenModel.preferences.einkFilter().collectAsState()
     val einkBrightness by screenModel.preferences.einkFilterBrightness().collectAsState()
     val einkContrast by screenModel.preferences.einkFilterContrast().collectAsState()
+    val einkSaturation by screenModel.preferences.einkFilterSaturation().collectAsState()
 
     // Auto-save color filters when any setting changes and per-chapter saving is enabled
     LaunchedEffect(
@@ -55,6 +56,7 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
         einkFilter,
         einkBrightness,
         einkContrast,
+        einkSaturation,
     ) {
         if (savePerChapter) {
             screenModel.onSaveChapterColorFilter()
@@ -109,6 +111,19 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
             valueString = "%.2f".format(einkContrast),
             onChange = { newValue ->
                 screenModel.preferences.einkFilterContrast().set(newValue / EINK_MULTIPLIER.toFloat())
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+        // Convert float (-0.5-0.5) to int (-50-50) for the slider
+        val saturationSliderValue = (einkSaturation * EINK_MULTIPLIER).roundToInt()
+        SliderItem(
+            value = saturationSliderValue,
+            valueRange = -50..50,
+            steps = 49,
+            label = stringResource(MR.strings.pref_eink_filter_saturation),
+            valueString = "%.2f".format(einkSaturation),
+            onChange = { newValue ->
+                screenModel.preferences.einkFilterSaturation().set(newValue / EINK_MULTIPLIER.toFloat())
             },
             pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )

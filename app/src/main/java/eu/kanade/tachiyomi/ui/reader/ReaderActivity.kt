@@ -152,12 +152,14 @@ class ReaderActivity : BaseActivity() {
         """
         // AGSL e-ink optimization shader: reduces contrast and boosts brightness
         // to improve readability on e-ink displays where colors tend to appear dark.
-        // brightness: 0.0 to 0.5, amount to add to each channel
-        // contrast: 0.0 to 0.5, amount of contrast reduction (factor = 1 - contrast)
+        // brightness: -0.5 to 0.5, amount to add to each channel
+        // contrast: -0.5 to 0.5, amount of contrast reduction (factor = 1 - contrast)
+        // saturation: -0.5 to 0.5, saturation adjustment (multiplier = 1 + saturation)
         private const val EINK_SHADER = """
             uniform shader inputImage;
             uniform float brightness;
             uniform float contrast;
+            uniform float saturation;
 
             half4 main(float2 coord) {
                 half4 color = inputImage.eval(coord);
@@ -168,6 +170,10 @@ class ReaderActivity : BaseActivity() {
 
                 // Apply brightness boost
                 rgb = rgb + half3(brightness);
+
+                // Apply saturation adjustment using BT.709 luminance weights
+                half luma = dot(rgb, half3(0.2126, 0.7152, 0.0722));
+                rgb = mix(half3(luma), rgb, 1.0 + saturation);
 
                 // Clamp to valid range and preserve alpha
                 return half4(clamp(rgb, half3(0.0), half3(1.0)), color.a);
@@ -940,6 +946,7 @@ class ReaderActivity : BaseActivity() {
         private var currentEinkEnabled = false
         private var currentEinkBrightness = 0f
         private var currentEinkContrast = 0f
+        private var currentEinkSaturation = 0f
 
         private fun getCombinedPaint(
             grayscale: Boolean,
@@ -949,6 +956,7 @@ class ReaderActivity : BaseActivity() {
             einkEnabled: Boolean = currentEinkEnabled,
             einkBrightness: Float = currentEinkBrightness,
             einkContrast: Float = currentEinkContrast,
+            einkSaturation: Float = currentEinkSaturation,
         ): Paint? {
             val isLegacyApi = Build.VERSION.SDK_INT < Build.VERSION_CODES.S
             // Check if any effect is enabled
@@ -1004,6 +1012,10 @@ class ReaderActivity : BaseActivity() {
                                     ),
                                 ),
                             )
+                            // Apply saturation adjustment
+                            val satMatrix = ColorMatrix()
+                            satMatrix.setSaturation(1f + einkSaturation)
+                            postConcat(satMatrix)
                         }
                     },
                 )
@@ -1056,8 +1068,13 @@ class ReaderActivity : BaseActivity() {
                     readerPreferences.einkFilterBrightness().changes(),
                     readerPreferences.einkFilterContrast().changes(),
                 ) { a, b, c -> Triple(a, b, c) },
-            ) { (grayscale, invertedColors), (sharpenEnabled, sharpenScale), eink ->
-                ColorFilterState(grayscale, invertedColors, sharpenEnabled, sharpenScale, eink.first, eink.second, eink.third)
+                readerPreferences.einkFilterSaturation().changes(),
+            ) { (grayscale, invertedColors), (sharpenEnabled, sharpenScale), eink, einkSaturation ->
+                ColorFilterState(
+                    grayscale, invertedColors,
+                    sharpenEnabled, sharpenScale,
+                    eink.first, eink.second, eink.third, einkSaturation,
+                )
             }
                 .onEach { state ->
                     // Update current filter state for API < 31
@@ -1066,6 +1083,7 @@ class ReaderActivity : BaseActivity() {
                     currentEinkEnabled = state.einkEnabled
                     currentEinkBrightness = state.einkBrightness
                     currentEinkContrast = state.einkContrast
+                    currentEinkSaturation = state.einkSaturation
 
                     // Apply layer paint (includes sharpen and eink for API < 31)
                     setLayerPaint(state.grayscale, state.invertedColors)
@@ -1207,21 +1225,24 @@ class ReaderActivity : BaseActivity() {
                         val shader = RuntimeShader(EINK_SHADER)
                         shader.setFloatUniform("brightness", state.einkBrightness)
                         shader.setFloatUniform("contrast", state.einkContrast)
+                        shader.setFloatUniform("saturation", state.einkSaturation)
                         RenderEffect.createRuntimeShaderEffect(shader, SHADER_INPUT_NAME)
                     } else {
                         val factor = 1f - state.einkContrast
                         val translate = (1f - factor) * 0.5f * 255f + state.einkBrightness * 255f
-                        RenderEffect.createColorFilterEffect(
-                            ColorMatrixColorFilter(
-                                ColorMatrix(
-                                    floatArrayOf(
-                                        factor, 0f, 0f, 0f, translate,
-                                        0f, factor, 0f, 0f, translate,
-                                        0f, 0f, factor, 0f, translate,
-                                        0f, 0f, 0f, 1f, 0f,
-                                    ),
-                                ),
+                        val contrastMatrix = ColorMatrix(
+                            floatArrayOf(
+                                factor, 0f, 0f, 0f, translate,
+                                0f, factor, 0f, 0f, translate,
+                                0f, 0f, factor, 0f, translate,
+                                0f, 0f, 0f, 1f, 0f,
                             ),
+                        )
+                        val satMatrix = ColorMatrix()
+                        satMatrix.setSaturation(1f + state.einkSaturation)
+                        contrastMatrix.postConcat(satMatrix)
+                        RenderEffect.createColorFilterEffect(
+                            ColorMatrixColorFilter(contrastMatrix),
                         )
                     }
                 } else {
@@ -1256,5 +1277,6 @@ class ReaderActivity : BaseActivity() {
         val einkEnabled: Boolean,
         val einkBrightness: Float,
         val einkContrast: Float,
+        val einkSaturation: Float,
     )
 }

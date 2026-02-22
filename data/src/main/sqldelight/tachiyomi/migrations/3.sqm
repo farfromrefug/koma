@@ -1,0 +1,1 @@
+ALTER TABLE chapter_color_filters ADD COLUMN eink_filter_saturation REAL NOT NULL DEFAULT 0.0;
